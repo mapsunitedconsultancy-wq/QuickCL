@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { extractDocuments, getClients } from '../api';
-import UploadZone from '../components/UploadZone';
+import UploadZone from '../components/uploadZone.jsx';
 import {
   Loader2,
   Zap,
