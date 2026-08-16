@@ -16,7 +16,7 @@ export default function UploadZone({ label, required, file, onFileChange, accept
       'image/heic': ['.heic'],
       'image/tiff': ['.tiff'],
     },
-    maxSize: 20 * 1024 * 1024, // 20 MB
+    maxSize: 10 * 1024 * 1024, // 10 MB
     maxFiles: 1,
   });
 

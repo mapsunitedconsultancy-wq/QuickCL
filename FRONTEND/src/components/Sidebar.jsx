@@ -10,7 +10,8 @@ import {
   Settings,
   LogOut,
   FileText,
-  Image as ImageIcon
+  Image as ImageIcon,
+  CreditCard
 } from 'lucide-react';
 
 
@@ -26,6 +27,8 @@ const navLinks = [
   { to: '/hs-lookup', icon: Search, label: 'HS Code Lookup' },
 
   { to: '/clients', icon: Users, label: 'Client Master' },
+
+  { to: '/pricing', icon: CreditCard, label: 'Pricing & Plans' },
 
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
@@ -87,7 +90,7 @@ export default function Sidebar() {
                 leading-tight
               "
             >
-              PDF TO CL
+              QuickCL
             </h1>
 
 

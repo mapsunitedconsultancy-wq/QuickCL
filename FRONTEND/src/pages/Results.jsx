@@ -5998,6 +5998,23 @@ export default function Results() {
             );
         };
 
+    const handleExcelDownload = async () => {
+        try {
+            await downloadExcel(
+                id,
+                data.job_number ||
+                data.jobNumber
+            );
+            toast.success(
+                'Excel downloaded'
+            );
+        } catch (err) {
+            toast.error(
+                'Failed to download Excel'
+            );
+        }
+    };
+
 
     // ========================================================
     // Loading
@@ -6344,12 +6361,8 @@ export default function Results() {
 
 
                             <button
-                                onClick={() =>
-                                    downloadExcel(
-                                        id,
-                                        data.job_number ||
-                                        data.jobNumber
-                                    )
+                                onClick={
+                                    handleExcelDownload
                                 }
                                 className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur transition hover:bg-white/20"
                             >
@@ -7137,7 +7150,6 @@ export default function Results() {
 
                                                                     <a
                                                                         href={ICEGATE_TRADE_GUIDE}
-                               
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
                                                                         className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-black text-slate-700 transition hover:bg-slate-50"

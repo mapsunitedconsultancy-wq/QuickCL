@@ -15,7 +15,6 @@ import {
   Search,
   ShieldCheck,
   Award,
-  Zap,
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -40,20 +39,16 @@ export default function Dashboard() {
 
         setRecent(items.slice(0, 5));
 
-        const total = res.data.total || 0;
-
-        const avgAcc = items.length
-          ? (
-              items.reduce((s, e) => s + (e.accuracy_score || 0), 0) /
-              items.length
-            ).toFixed(1)
-          : 0;
-
-        setStats({
-          total,
-          thisMonth: items.length,
-          avgAccuracy: avgAcc,
-        });
+        if (res.data.stats) {
+          setStats(res.data.stats);
+        } else {
+          const total = res.data.total || 0;
+          setStats({
+            total,
+            thisMonth: items.length,
+            avgAccuracy: 0,
+          });
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -79,9 +74,7 @@ export default function Dashboard() {
 
           <div className="inline-flex items-center gap-2 rounded-full border border-teal-500/30 bg-teal-500/20 px-3 py-1 text-xs font-bold text-teal-300">
 
-            <Zap size={14} />
-
-            AI Document Extraction Engine Active
+            Document Extraction Engine Active
 
           </div>
 
@@ -283,7 +276,9 @@ export default function Dashboard() {
                             className={`rounded-full px-3 py-1 text-[11px] font-bold ${
                               ext.doc_type === "BOE"
                                 ? "bg-blue-100 text-blue-900"
-                                : "bg-emerald-100 text-emerald-800"
+                                : ext.doc_type === "SB"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-purple-100 text-purple-800"
                             }`}
                           >
                             {ext.doc_type}
@@ -295,7 +290,7 @@ export default function Dashboard() {
 
                           <span className="font-bold text-emerald-700">
 
-                            {ext.accuracy_score?.toFixed(1)}%
+                            {ext.accuracy_score != null ? `${ext.accuracy_score.toFixed(1)}%` : '--'}
 
                           </span>
 
@@ -311,7 +306,11 @@ export default function Dashboard() {
 
                           <button
                             onClick={() =>
-                              navigate(`/results/${ext.id}`)
+                              navigate(
+                                ext.result_type === "image"
+                                  ? `/image-results/${ext.id}`
+                                  : `/results/${ext.id}`
+                              )
                             }
                             className="inline-flex items-center gap-2 rounded-lg bg-blue-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-800"
                           >
@@ -385,7 +384,7 @@ export default function Dashboard() {
 
                 <div className="mt-2 text-3xl font-black text-emerald-700">
 
-                  {stats.avgAccuracy}%
+                  {stats.total > 0 && stats.avgAccuracy != null ? `${stats.avgAccuracy}%` : '--'}
 
                 </div>
 

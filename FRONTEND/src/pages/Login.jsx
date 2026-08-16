@@ -1,115 +1,15 @@
-// import { useState } from 'react';
-// import { useNavigate, Link } from 'react-router-dom';
-// import { loginUser } from '../api';
-// import { useAuth } from '../context/AuthContext';
-// import { FileText, Loader2 } from 'lucide-react';
-
-// export default function Login() {
-//   const [email, setEmail] = useState('');
-//   const [password, setPassword] = useState('');
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState('');
-//   const navigate = useNavigate();
-//   const { login } = useAuth();
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     setLoading(true); setError('');
-//     try {
-//       const res = await loginUser({ email, password });
-//       login(res.data.token, res.data.user);
-//       navigate('/');
-//     } catch (err) {
-//       setError(err.response?.data?.error || 'Login failed. Check your credentials.');
-//     }
-//     setLoading(false);
-//   };
-
-//   return (
-//     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br
-//       from-gray-50 to-blue-50 p-4">
-//       <div className="w-full max-w-sm">
-//         {/* Logo */}
-//         <div className="text-center mb-8">
-//           <div className="w-14 h-14 bg-blue-800 rounded-2xl flex items-center
-//             justify-center mx-auto mb-3 shadow-lg">
-//             <FileText size={24} className="text-white" />
-//           </div>
-//           <h1 className="text-2xl font-black text-gray-900">PDF TO CL</h1>
-//           <p className="text-xs text-gray-400 mt-1">MAPS Tech & AI</p>
-//         </div>
-
-//         {/* Form */}
-//         <div className="card-base p-7">
-//           <h2 className="text-lg font-bold mb-1">Welcome back</h2>
-//           <p className="text-sm text-gray-400 mb-5">Login to your CHA account</p>
-
-//           {error && (
-//             <div className="bg-red-50 text-red-700 text-sm p-3 rounded-lg mb-4
-//               border border-red-200">{error}</div>
-//           )}
-
-//           <form onSubmit={handleSubmit} className="space-y-4">
-//             <div>
-//               <label className="text-xs font-semibold text-gray-500 mb-1 block">Email</label>
-//               <input type="email" required className="input-field"
-//                 placeholder="you@firm.com" value={email}
-//                 onChange={(e) => setEmail(e.target.value)} />
-//             </div>
-//             <div>
-//               <label className="text-xs font-semibold text-gray-500 mb-1 block">Password</label>
-//               <input type="password" required className="input-field"
-//                 placeholder="Your password" value={password}
-//                 onChange={(e) => setPassword(e.target.value)} />
-//             </div>
-//             <button type="submit" disabled={loading}
-//               className="btn-primary w-full flex items-center justify-center gap-2">
-//               {loading && <Loader2 size={16} className="animate-spin" />}
-//               {loading ? 'Logging in...' : 'Login'}
-//             </button>
-//           </form>
-
-//           <p className="text-xs text-center mt-5 text-gray-400">
-//             New firm? <Link to="/register" className="text-blue-700 font-semibold">Register here</Link>
-//           </p>
-//         </div>
-
-//         <p className="text-[10px] text-gray-300 text-center mt-4">
-//           MapsUnited Consultancy Pvt. Ltd. · Gandhidham
-//         </p>
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { loginUser } from '../api';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext.jsx';
+import { supabase } from '../lib/supabase.js';
+import { checkEmailExists } from '../api/index.js';
 
 import {
   FileText,
   Loader2,
   ShieldCheck,
-  Zap,
   ArrowRight,
   CheckCircle2,
-  Sparkles,
 } from 'lucide-react';
 
 export default function Login() {
@@ -118,8 +18,24 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Password reset states
+  const [view, setView] = useState('login'); // 'login' | 'forgot' | 'forgot-password'
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
   const navigate = useNavigate();
   const { login } = useAuth();
+
+  // Detect recovery redirect on load
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('type') === 'recovery') {
+      setView('forgot-password');
+      // Clean up URL so reloads don't get stuck in recovery mode
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -128,19 +44,95 @@ export default function Login() {
     setError('');
 
     try {
-      const res = await loginUser({ email, password });
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      login(res.data.token, res.data.user);
+      if (signInError) throw signInError;
 
+      // Upon successful login, the onAuthStateChange in AuthContext handles fetching profile
       navigate('/');
     } catch (err) {
-      setError(
-        err.response?.data?.error ||
-          'Login failed. Check your credentials.'
-      );
+      setError(err.message || 'Login failed. Check your credentials.');
     }
 
     setLoading(false);
+  };
+
+  // Step 1: Send Password Reset Link to email
+  const handleSendForgotPasswordLink = async (e) => {
+    if (e) e.preventDefault();
+    if (!email) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccessMsg('');
+
+    try {
+      // Check if email is registered in our database first
+      const checkRes = await checkEmailExists(email);
+      if (!checkRes.data || !checkRes.data.exists) {
+        throw new Error('This email address is not registered.');
+      }
+
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login`,
+      });
+
+      if (resetErr) throw resetErr;
+
+      setSuccessMsg('A password reset link has been sent to your email.');
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || 'Failed to send password reset link. Make sure the email is registered.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 2: Set new password after link redirection
+  const handleResetPassword = async (e) => {
+    if (e) e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters long');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { error: passErr } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (passErr) throw passErr;
+
+      // Navigate to home page/dashboard
+      navigate('/');
+    } catch (err) {
+      setError(err.message || 'Failed to save your new password.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetToLogin = () => {
+    setView('login');
+    setError('');
+    setSuccessMsg('');
+    setNewPassword('');
+    setConfirmPassword('');
   };
 
   return (
@@ -201,11 +193,11 @@ export default function Login() {
                 <div>
 
                   <div className="text-lg font-black tracking-tight">
-                    PDF TO CL
+                    QuickCL
                   </div>
 
                   <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                    MAPS Tech & AI
+                    MAPS TECH & AI
                   </div>
 
                 </div>
@@ -219,19 +211,17 @@ export default function Login() {
 
                 <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-bold text-teal-300">
 
-                  <Zap size={13} />
-
-                  AI Customs Extraction Platform
+                  Fast Customs Checklist Helper
 
                 </div>
 
 
                 <h1 className="max-w-lg text-4xl font-black leading-tight tracking-tight">
 
-                  Turn shipping documents into
+                  Make customs filing faster
 
                   <span className="text-teal-300">
-                    {' '}customs-ready data.
+                    {' '}and error-free.
                   </span>
 
                 </h1>
@@ -239,20 +229,18 @@ export default function Login() {
 
                 <p className="mt-5 max-w-md text-sm leading-6 text-slate-300">
 
-                  Extract critical information from Commercial Invoices,
-                  Packing Lists and Bills of Lading with an intelligent
-                  document processing workflow.
+                  Stop wasting hours typing declarations manually. Our helper tool reads your Commercial Invoices, Packing Lists, and AWB copies for you, preparing your checklists in seconds.
 
                 </p>
 
 
                 {/* Feature list */}
 
-                <div className="mt-8 space-y-4">
+                <div className="mt-8 space-y-5">
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-start gap-3">
 
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-400/10">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-400/10 mt-0.5">
 
                       <CheckCircle2
                         size={15}
@@ -261,16 +249,21 @@ export default function Login() {
 
                     </div>
 
-                    <span className="text-sm text-slate-300">
-                      Automated document extraction
-                    </span>
+                    <div>
+                      <span className="block text-sm font-bold text-teal-300">
+                        140+ Checklist fields captured instantly
+                      </span>
+                      <span className="mt-1 block text-xs text-slate-300 leading-relaxed">
+                        Automatically processes party details, quantities, item descriptions, values, and HS codes without manual typing
+                      </span>
+                    </div>
 
                   </div>
 
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-start gap-3">
 
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-400/10">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-400/10 mt-0.5">
 
                       <CheckCircle2
                         size={15}
@@ -279,16 +272,21 @@ export default function Login() {
 
                     </div>
 
-                    <span className="text-sm text-slate-300">
-                      Customs-ready structured data
-                    </span>
+                    <div>
+                      <span className="block text-sm font-bold text-teal-300">
+                        14,000+ Verified HS codes
+                      </span>
+                      <span className="mt-1 block text-xs text-slate-300 leading-relaxed">
+                        Direct matching from the official CBIC database, guaranteeing accurate classification with zero guesswork
+                      </span>
+                    </div>
 
                   </div>
 
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-start gap-3">
 
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-400/10">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-400/10 mt-0.5">
 
                       <CheckCircle2
                         size={15}
@@ -297,9 +295,37 @@ export default function Login() {
 
                     </div>
 
-                    <span className="text-sm text-slate-300">
-                      AI-powered accuracy validation
-                    </span>
+                    <div>
+                      <span className="block text-sm font-bold text-teal-300">
+                        Works with your existing CHA system
+                      </span>
+                      <span className="mt-1 block text-xs text-slate-300 leading-relaxed">
+                        Zero integration setup. Simply copy-paste data directly into whatever filing software you use
+                      </span>
+                    </div>
+
+                  </div>
+
+
+                  <div className="flex items-start gap-3">
+
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-400/10 mt-0.5">
+
+                      <CheckCircle2
+                        size={15}
+                        className="text-teal-300"
+                      />
+
+                    </div>
+
+                    <div>
+                      <span className="block text-sm font-bold text-teal-300">
+                        Immediate document deletion
+                      </span>
+                      <span className="mt-1 block text-xs text-slate-300 leading-relaxed">
+                        Your invoices and files are wiped right after extraction. We prioritize privacy and are not a data business
+                      </span>
+                    </div>
 
                   </div>
 
@@ -316,12 +342,12 @@ export default function Login() {
 
                   <ShieldCheck size={15} />
 
-                  Secure document processing
+                  Secure document helper
 
                 </div>
 
                 <div className="text-xs text-slate-500">
-                  MAPS Tech & AI
+                  MAPS TECH & AI
                 </div>
 
               </div>
@@ -353,11 +379,11 @@ export default function Login() {
               <div>
 
                 <div className="text-lg font-black tracking-tight text-slate-900">
-                  PDF TO CL
+                  QuickCL
                 </div>
 
                 <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                  MAPS Tech & AI
+                  MAPS UNITED CONSULTANCY
                 </div>
 
               </div>
@@ -368,28 +394,43 @@ export default function Login() {
             {/* Heading */}
 
             <div className="mb-7">
-
-              <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-800">
-
-                <Sparkles size={12} />
-
-                Customs Workspace
-
-              </div>
-
-              <h2 className="text-3xl font-black tracking-tight text-slate-900">
-
-                Welcome back
-
-              </h2>
-
-              <p className="mt-2 text-sm text-slate-500">
-
-                Login to your CHA account and continue your document
-                extraction workflow.
-
-              </p>
-
+              {view === 'login' ? (
+                <>
+                  <h2 className="text-3xl font-black tracking-tight text-slate-900">
+                    Login
+                  </h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Log in to your workspace to generate checklists and manage your customs entry profiles.
+                  </p>
+                </>
+              ) : view === 'forgot' ? (
+                <>
+                  <h2 className="text-3xl font-black tracking-tight text-slate-900">
+                    Forgot Password
+                  </h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Enter your email to receive an 8-digit OTP code to verify your identity.
+                  </p>
+                </>
+              ) : view === 'forgot-otp' ? (
+                <>
+                  <h2 className="text-3xl font-black tracking-tight text-slate-900">
+                    Verify OTP Code
+                  </h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Enter the 8-digit OTP code sent to your email to continue resetting your password.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-3xl font-black tracking-tight text-slate-900">
+                    Create New Password
+                  </h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Set a secure new password for your QuickCL account.
+                  </p>
+                </>
+              )}
             </div>
 
 
@@ -404,7 +445,7 @@ export default function Login() {
                 <div>
 
                   <p className="text-xs font-bold text-red-800">
-                    Login unsuccessful
+                    Error
                   </p>
 
                   <p className="mt-1 text-xs leading-5 text-red-600">
@@ -417,115 +458,230 @@ export default function Login() {
 
             )}
 
+            {/* Success message */}
+            {successMsg && (
+              <div className="mb-5 flex items-start gap-3 rounded-xl border border-teal-200 bg-teal-50 p-4">
+                <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-teal-500" />
+                <div>
+                  <p className="text-xs font-bold text-teal-800">Verification Sent</p>
+                  <p className="mt-1 text-xs leading-5 text-teal-600">{successMsg}</p>
+                </div>
+              </div>
+            )}
+
 
             {/* Form */}
 
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-5"
-            >
+            {view === 'login' && (
+              <form
+                onSubmit={handleSubmit}
+                className="space-y-5"
+              >
 
-              {/* Email */}
+                {/* Email */}
 
-              <div>
+                <div>
 
-                <label className="mb-2 block text-xs font-bold text-slate-700">
+                  <label className="mb-2 block text-xs font-bold text-slate-700">
 
-                  Email Address
-
-                </label>
-
-                <input
-                  type="email"
-                  required
-                  placeholder="you@firm.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-800 focus:bg-white focus:ring-4 focus:ring-blue-900/5"
-                />
-
-              </div>
-
-
-              {/* Password */}
-
-              <div>
-
-                <div className="mb-2 flex items-center justify-between">
-
-                  <label className="block text-xs font-bold text-slate-700">
-
-                    Password
+                    Email Address
 
                   </label>
 
+                  <input
+                    type="email"
+                    required
+                    placeholder="you@firm.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-800 focus:bg-white focus:ring-4 focus:ring-blue-900/5"
+                  />
+
                 </div>
 
-                <input
-                  type="password"
-                  required
-                  placeholder="Your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-800 focus:bg-white focus:ring-4 focus:ring-blue-900/5"
-                />
 
-              </div>
+                {/* Password */}
+
+                <div>
+
+                  <div className="mb-2 flex items-center justify-between">
+
+                    <label className="block text-xs font-bold text-slate-700">
+
+                      Password
+
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => setView('forgot')}
+                      className="text-xs font-bold text-blue-800 hover:text-blue-950 hover:underline focus:outline-none"
+                    >
+                      Forgot Password?
+                    </button>
+
+                  </div>
+
+                  <input
+                    type="password"
+                    required
+                    placeholder="Your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-800 focus:bg-white focus:ring-4 focus:ring-blue-900/5"
+                  />
+
+                </div>
 
 
-              {/* Login button */}
+                {/* Login button */}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="group flex w-full items-center justify-center gap-2 rounded-xl bg-blue-950 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-950/10 transition-all hover:bg-blue-900 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-70"
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="group flex w-full items-center justify-center gap-2 rounded-xl bg-blue-950 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-950/10 transition-all hover:bg-blue-900 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-70"
+                >
+
+                  {loading ? (
+                    <>
+                      <Loader2
+                        size={17}
+                        className="animate-spin"
+                      />
+
+                      Logging in...
+
+                    </>
+                  ) : (
+                    <>
+                      Login to Workspace
+
+                      <ArrowRight
+                        size={16}
+                        className="transition-transform group-hover:translate-x-1"
+                      />
+
+                    </>
+                  )}
+
+                </button>
+
+              </form>
+            )}
+
+            {view === 'forgot' && (
+              <form
+                onSubmit={handleSendForgotPasswordLink}
+                className="space-y-5"
               >
+                <div>
+                  <label className="mb-2 block text-xs font-bold text-slate-700">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="you@firm.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-800 focus:bg-white focus:ring-4 focus:ring-blue-900/5"
+                  />
+                </div>
 
-                {loading ? (
-                  <>
-                    <Loader2
-                      size={17}
-                      className="animate-spin"
-                    />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="group flex w-full items-center justify-center gap-2 rounded-xl bg-blue-950 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-950/10 transition-all hover:bg-blue-900 hover:shadow-xl"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={17} className="animate-spin" />
+                      Sending Link...
+                    </>
+                  ) : (
+                    <>
+                      Send Reset Link
+                      <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                    </>
+                  )}
+                </button>
 
-                    Logging in...
+                <div className="text-center pt-2">
+                  <button
+                    type="button"
+                    onClick={resetToLogin}
+                    className="text-xs font-bold text-slate-500 hover:text-slate-800 hover:underline"
+                  >
+                    ← Back to Login
+                  </button>
+                </div>
+              </form>
+            )}
 
-                  </>
-                ) : (
-                  <>
-                    Login to Workspace
+            {view === 'forgot-password' && (
+              <form
+                onSubmit={handleResetPassword}
+                className="space-y-5"
+              >
+                <div>
+                  <label className="mb-2 block text-xs font-bold text-slate-700">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Min 6 characters"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-800 focus:bg-white focus:ring-4 focus:ring-blue-900/5"
+                  />
+                </div>
 
-                    <ArrowRight
-                      size={16}
-                      className="transition-transform group-hover:translate-x-1"
-                    />
+                <div>
+                  <label className="mb-2 block text-xs font-bold text-slate-700">
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Type password again"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-800 focus:bg-white focus:ring-4 focus:ring-blue-900/5"
+                  />
+                </div>
 
-                  </>
-                )}
-
-              </button>
-
-            </form>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="group flex w-full items-center justify-center gap-2 rounded-xl bg-blue-950 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-950/10 transition-all hover:bg-blue-900 hover:shadow-xl"
+                >
+                  {loading ? 'Saving...' : 'Save Password & Continue'}
+                </button>
+              </form>
+            )}
 
 
             {/* Register */}
 
-            <div className="mt-7 border-t border-slate-100 pt-6 text-center">
+            {view === 'login' && (
+              <div className="mt-7 border-t border-slate-100 pt-6 text-center">
 
-              <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-400">
 
-                New firm?
+                  New firm?
 
-                <Link
-                  to="/register"
-                  className="ml-1 font-bold text-blue-800 hover:text-blue-950 hover:underline"
-                >
-                  Register here
-                </Link>
+                  <Link
+                    to="/register"
+                    className="ml-1 font-bold text-blue-800 hover:text-blue-950 hover:underline"
+                  >
+                    Register here
+                  </Link>
 
-              </p>
+                </p>
 
-            </div>
+              </div>
+            )}
 
 
             {/* Security note */}
@@ -534,7 +690,7 @@ export default function Login() {
 
               <ShieldCheck size={13} />
 
-              Your account is protected with secure authentication
+              Gandhidham CHA Secure Login
 
             </div>
 
@@ -611,7 +767,7 @@ export default function Login() {
 //           <div className="w-14 h-14 bg-blue-900 text-teal-400 rounded-2xl flex items-center justify-center mx-auto shadow-md font-black text-2xl">
 //             CL
 //           </div>
-//           <h2 className="text-2xl font-black text-slate-900">Sign In to PDF to CL</h2>
+//           <h2 className="text-2xl font-black text-slate-900">Sign In to QuickCL</h2>
 //           <p className="text-xs text-slate-500">
 //             India Customs Agent AI platform for 1-click BOE & SB checklist extractions
 //           </p>

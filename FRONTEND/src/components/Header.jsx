@@ -10,7 +10,6 @@ import {
   Settings,
   User,
   ShieldCheck,
-  Sparkles,
   FileCheck2
 } from 'lucide-react';
 
@@ -39,7 +38,6 @@ export function Header({
           </span>
           <span className="hidden lg:inline text-slate-500">|</span>
           <span className="hidden lg:inline-flex items-center gap-1 text-emerald-400 font-medium">
-            <Sparkles className="w-3 h-3" />
             Gemini OCR & Tariff AI Active
           </span>
         </div>
@@ -78,7 +76,7 @@ export function Header({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-black text-slate-900 tracking-tight">PDF to CL</h1>
+                <h1 className="text-xl font-black text-slate-900 tracking-tight">QuickCL</h1>
                 <span className="bg-blue-100 text-blue-900 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200 font-mono">
                   v2.6 INDIA CHA
                 </span>

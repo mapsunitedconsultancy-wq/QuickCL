@@ -14,6 +14,8 @@ import Settings from './pages/Settings';
 import { Loader2 } from 'lucide-react';
 import ImageExtract from './pages/ImageExtract';
 import ImageResults from './pages/ImageResults';
+import Pricing from './pages/Pricing.jsx';
+import Payment from './pages/Payment.jsx';
 
 // Protects routes — redirects to /login if not authenticated
 function ProtectedRoute({ children }) {
@@ -24,6 +26,12 @@ function ProtectedRoute({ children }) {
     </div>
   );
   if (!user) return <Navigate to="/login" replace />;
+
+  // Redirect to register if profile registration details are incomplete
+  if (!user.firmName || !user.phone) {
+    return <Navigate to="/register" replace />;
+  }
+
   return children;
 }
 
@@ -73,6 +81,8 @@ export default function App() {
           <Route path="/settings" element={<Page component={Settings} />} />
           <Route path="/image-extract" element={<Page component={ImageExtract} />}/>
           <Route path="/image-results/:id" element={<Page component={ImageResults} />} />
+          <Route path="/pricing" element={<Page component={Pricing} />} />
+          <Route path="/payment" element={<Page component={Payment} />} />
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

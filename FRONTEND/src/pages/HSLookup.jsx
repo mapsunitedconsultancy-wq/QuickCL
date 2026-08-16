@@ -236,7 +236,6 @@ import {
   Database,
   Loader2,
   ShieldCheck,
-  Sparkles,
   FileSearch,
   Hash,
   Info,
@@ -291,8 +290,6 @@ export default function HSLookup() {
           {/* Badge */}
 
           <div className="inline-flex items-center gap-2 rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-bold text-teal-300">
-
-            <Sparkles size={13} />
 
             Indian Customs Tariff Database
 

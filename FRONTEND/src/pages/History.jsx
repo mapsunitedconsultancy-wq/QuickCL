@@ -118,7 +118,6 @@ import {
   Search,
   Filter,
   FileText,
-  Sparkles,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
@@ -132,6 +131,7 @@ export default function History() {
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState('');
   const [loading, setLoading] = useState(true);
+  const [counts, setCounts] = useState({ boe: 0, sb: 0, image: 0, all: 0 });
 
   const fetchData = (p = 1, type = '') => {
     setLoading(true);
@@ -140,6 +140,9 @@ export default function History() {
       .then((res) => {
         setExtractions(res.data.extractions || []);
         setTotal(res.data.total || 0);
+        if (res.data.counts) {
+          setCounts(res.data.counts);
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -210,7 +213,7 @@ export default function History() {
             </p>
 
             <p className="text-sm font-black text-slate-900">
-              {total}
+              {counts.all}
             </p>
 
           </div>
@@ -258,22 +261,27 @@ export default function History() {
 
           <div className="flex items-center gap-2">
 
-            {['', 'BOE', 'SB'].map((t) => (
+            {[
+              { label: 'All', value: '', count: counts.all },
+              { label: 'BOE', value: 'BOE', count: counts.boe },
+              { label: 'SB', value: 'SB', count: counts.sb },
+              { label: 'Image', value: 'IMAGE', count: counts.image },
+            ].map((btn) => (
 
               <button
-                key={t}
+                key={btn.value}
                 onClick={() => {
-                  setTypeFilter(t);
+                  setTypeFilter(btn.value);
                   setPage(1);
                 }}
                 className={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${
-                  typeFilter === t
+                  typeFilter === btn.value
                     ? 'bg-blue-950 text-white shadow-md'
                     : 'border border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50'
                 }`}
               >
 
-                {t || 'All'}
+                {btn.label} ({btn.count})
 
               </button>
 
