@@ -30,6 +30,11 @@ export default function Settings() {
       value: user?.phone,
     },
     {
+      icon: FileText,
+      label: 'GST Number',
+      value: user?.gstNumber,
+    },
+    {
       icon: CreditCard,
       label: 'Plan',
       value: user?.plan?.toUpperCase() || 'DEMO',
@@ -207,7 +212,7 @@ export default function Settings() {
 
               <div>
                 <p className="text-sm font-bold text-gray-800">
-                  PDF TO CL
+                  QuickCL
                 </p>
 
                 <p className="text-[11px] text-gray-400">
@@ -295,7 +300,7 @@ export default function Settings() {
               </h2>
 
               <p className="text-[11px] text-gray-400">
-                Your PDF TO CL account is active
+                Your QuickCL account is active
               </p>
             </div>
 

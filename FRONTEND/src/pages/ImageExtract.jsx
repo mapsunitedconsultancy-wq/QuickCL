@@ -909,6 +909,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 import { extractImage } from '../api';
 
@@ -929,6 +930,19 @@ import toast from 'react-hot-toast';
 export default function ImageExtract() {
 
     const navigate = useNavigate();
+    const { user } = useAuth();
+
+    const currentPlan = (user?.plan || 'demo').toLowerCase();
+    const extractionsUsed = user?.extractionsUsed || 0;
+
+    let planLimit = 40;
+    if (currentPlan === 'pro') {
+        planLimit = 120;
+    } else if (currentPlan === 'enterprise') {
+        planLimit = Infinity;
+    }
+
+    const isLimitReached = extractionsUsed >= planLimit;
 
 
     const [file, setFile] =
@@ -984,15 +998,15 @@ export default function ImageExtract() {
         }
 
 
-        // Maximum 20 MB
+        // Maximum 10 MB
 
         if (
             selectedFile.size >
-            20 * 1024 * 1024
+            10 * 1024 * 1024
         ) {
 
             setError(
-                'Image size must be less than 20 MB.'
+                'Image size must be less than 10 MB.'
             );
 
             return;
@@ -1036,6 +1050,12 @@ export default function ImageExtract() {
 
     const handleExtract = async () => {
 
+        if (isLimitReached) {
+            setError('Plan limit reached. Please upgrade to a higher plan.');
+            toast.error('Limit reached. Please upgrade.');
+            return;
+        }
+
         if (!file) {
 
             setError(
@@ -1069,7 +1089,7 @@ export default function ImageExtract() {
 
 
             setProgress(
-                'Sending image to Gemini...'
+                'Reading image...'
             );
 
 
@@ -1171,7 +1191,7 @@ export default function ImageExtract() {
                             bg-purple-100 text-purple-800
                             uppercase tracking-wider"
                         >
-                            AI IMAGE EXTRACTION
+                            IMAGE EXTRACTION
                         </span>
 
                     </div>
@@ -1190,177 +1210,175 @@ export default function ImageExtract() {
                         mt-1"
                     >
                         Upload a JPG, JPEG or PNG image
-                        and let Gemini extract all
+                        and extract all
                         available information.
                     </p>
 
                 </div>
 
-
-                <div
-                    className="hidden sm:flex
-                    items-center gap-2 text-xs
-                    text-gray-400 bg-white border
-                    border-gray-200 rounded-lg
-                    px-3 py-2"
-                >
-
-                    <Zap
-                        size={14}
-                        className="text-purple-700"
-                    />
-
-                    Gemini AI Powered
-
-                </div>
-
             </div>
 
+            {/* =====================================================
+                LIMIT WARNING
+            ====================================================== */}
+            {isLimitReached && (
+                <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm p-4 rounded-xl mb-6 shadow-sm">
+                    <AlertCircle size={18} className="shrink-0 mt-0.5 text-amber-600" />
+                    <div>
+                        <p className="font-bold">
+                            {currentPlan === 'demo' ? 'Free' : currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1)} Plan Limit Reached
+                        </p>
+                        <p className="text-xs mt-0.5">
+                            You have used all {extractionsUsed}/{planLimit} extractions allowed on your plan. To continue creating new document extractions, please upgrade to a higher plan.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* =====================================================
                 UPLOAD CARD
             ====================================================== */}
 
-            <div
-                className="card-base p-5 mb-4"
-            >
+    <div
+        className="card-base p-5 mb-4"
+    >
 
-                <div
-                    className="flex items-center
+        <div
+            className="flex items-center
                     gap-2 mb-4"
-                >
+        >
 
-                    <div
-                        className="w-8 h-8 rounded-lg
+            <div
+                className="w-8 h-8 rounded-lg
                         bg-purple-100 text-purple-700
                         flex items-center justify-center"
-                    >
+            >
 
-                        <ImageIcon size={16} />
+                <ImageIcon size={16} />
 
-                    </div>
+            </div>
 
 
-                    <div>
+            <div>
 
-                        <h2
-                            className="text-sm font-bold
+                <h2
+                    className="text-sm font-bold
                             text-gray-800"
-                        >
-                            Upload Image
-                        </h2>
+                >
+                    Upload Image
+                </h2>
 
 
-                        <p
-                            className="text-[11px]
+                <p
+                    className="text-[11px]
                             text-gray-400"
-                        >
-                            Supported formats: JPG,
-                            JPEG and PNG
-                        </p>
+                >
+                    Supported formats: JPG,
+                    JPEG and PNG
+                </p>
 
-                    </div>
+            </div>
 
 
-                    <span
-                        className="ml-auto text-[10px]
+            <span
+                className="ml-auto text-[10px]
                         font-bold px-2 py-1 rounded
                         bg-red-50 text-red-600"
-                    >
-                        REQUIRED
-                    </span>
+            >
+                REQUIRED
+            </span>
 
-                </div>
-
-
-                {!file ? (
-
-                    <label
-                        className="block cursor-pointer"
-                    >
-
-                        <input
-                            type="file"
-                            accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-                            onChange={handleFileChange}
-                            className="hidden"
-                        />
+        </div>
 
 
-                        <div
-                            className="border-2 border-dashed
+        {!file ? (
+
+            <label
+                className="block cursor-pointer"
+            >
+
+                <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                    onChange={handleFileChange}
+                    className="hidden"
+                />
+
+
+                <div
+                    className="border-2 border-dashed
                             border-gray-200 rounded-xl
                             p-10 text-center
                             hover:border-purple-300
                             hover:bg-purple-50/30
                             transition-all"
-                        >
+                >
 
-                            <div
-                                className="w-14 h-14
+                    <div
+                        className="w-14 h-14
                                 mx-auto mb-4 rounded-xl
                                 bg-purple-100
                                 text-purple-700
                                 flex items-center
                                 justify-center"
-                            >
+                    >
 
-                                <ImageIcon
-                                    size={26}
-                                />
+                        <ImageIcon
+                            size={26}
+                        />
 
-                            </div>
+                    </div>
 
 
-                            <p
-                                className="text-sm
+                    <p
+                        className="text-sm
                                 font-bold text-gray-800"
-                            >
-                                Click to upload an image
-                            </p>
+                    >
+                        Click to upload an image
+                    </p>
 
 
-                            <p
-                                className="text-xs
+                    <p
+                        className="text-xs
                                 text-gray-400 mt-1"
-                            >
-                                JPG · JPEG · PNG
-                                · Maximum 20 MB
-                            </p>
+                    >
+                        JPG · JPEG · PNG
+                        · Maximum 10 MB
+                    </p>
 
-                        </div>
+                </div>
 
-                    </label>
+            </label>
 
-                ) : (
+        ) : (
 
-                    <div>
+            <div>
 
-                        <div
-                            className="relative
+                <div
+                    className="relative
                             rounded-xl overflow-hidden
                             border border-gray-200
                             bg-gray-50"
-                        >
+                >
 
-                            {preview && (
+                    {preview && (
 
-                                <img
-                                    src={preview}
-                                    alt="Selected"
-                                    className="w-full
+                        <img
+                            src={preview}
+                            alt="Selected"
+                            className="w-full
                                     max-h-[500px]
                                     object-contain"
-                                />
+                        />
 
-                            )}
+                    )}
 
 
-                            <button
-                                type="button"
-                                onClick={removeImage}
-                                disabled={loading}
-                                className="absolute
+                    <button
+                        type="button"
+                        onClick={removeImage}
+                        disabled={loading}
+                        className="absolute
                                 top-3 right-3
                                 w-9 h-9 rounded-full
                                 bg-white shadow-md
@@ -1369,144 +1387,147 @@ export default function ImageExtract() {
                                 text-gray-600
                                 hover:text-red-600
                                 disabled:opacity-50"
-                            >
+                    >
 
-                                <X size={17} />
+                        <X size={17} />
 
-                            </button>
+                    </button>
 
-                        </div>
+                </div>
 
 
-                        <div
-                            className="flex items-center
+                <div
+                    className="flex items-center
                             gap-3 mt-3 p-3 rounded-lg
                             bg-gray-50 border
                             border-gray-100"
-                        >
-
-                            <CheckCircle2
-                                size={17}
-                                className="text-green-600"
-                            />
-
-
-                            <div
-                                className="flex-1 min-w-0"
-                            >
-
-                                <p
-                                    className="text-xs
-                                    font-bold text-gray-800
-                                    truncate"
-                                >
-                                    {file.name}
-                                </p>
-
-
-                                <p
-                                    className="text-[10px]
-                                    text-gray-400"
-                                >
-                                    {(
-                                        file.size /
-                                        1024 /
-                                        1024
-                                    ).toFixed(2)}
-                                    {' '}MB
-                                </p>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                )}
-
-            </div>
-
-
-            {/* =====================================================
-                ERROR
-            ====================================================== */}
-
-            {error && (
-
-                <div
-                    className="flex items-start
-                    gap-3 bg-red-50 border
-                    border-red-200 text-red-700
-                    text-sm p-4 rounded-xl mb-4"
                 >
 
-                    <AlertCircle
-                        size={18}
-                        className="shrink-0 mt-0.5"
+                    <CheckCircle2
+                        size={17}
+                        className="text-green-600"
                     />
 
 
-                    <div>
+                    <div
+                        className="flex-1 min-w-0"
+                    >
 
-                        <p className="font-bold">
-                            Image Extraction Error
+                        <p
+                            className="text-xs
+                                    font-bold text-gray-800
+                                    truncate"
+                        >
+                            {file.name}
                         </p>
 
 
-                        <p className="text-xs mt-0.5">
-                            {error}
+                        <p
+                            className="text-[10px]
+                                    text-gray-400"
+                        >
+                            {(
+                                file.size /
+                                1024 /
+                                1024
+                            ).toFixed(2)}
+                            {' '}MB
                         </p>
 
                     </div>
 
                 </div>
 
-            )}
+            </div>
+
+        )}
+
+    </div>
 
 
-            {/* =====================================================
+    {/* =====================================================
+                ERROR
+            ====================================================== */}
+
+    {
+        error && (
+
+            <div
+                className="flex items-start
+                    gap-3 bg-red-50 border
+                    border-red-200 text-red-700
+                    text-sm p-4 rounded-xl mb-4"
+            >
+
+                <AlertCircle
+                    size={18}
+                    className="shrink-0 mt-0.5"
+                />
+
+
+                <div>
+
+                    <p className="font-bold">
+                        Image Extraction Error
+                    </p>
+
+
+                    <p className="text-xs mt-0.5">
+                        {error}
+                    </p>
+
+                </div>
+
+            </div>
+
+        )
+    }
+
+
+    {/* =====================================================
                 ACTION
             ====================================================== */}
 
-            <div
-                className="card-base p-5"
-            >
+    <div
+        className="card-base p-5"
+    >
 
-                <div
-                    className="flex flex-col
+        <div
+            className="flex flex-col
                     sm:flex-row sm:items-center
                     justify-between gap-4"
-                >
+        >
 
-                    <div>
+            <div>
 
-                        <p
-                            className="text-sm font-bold
+                <p
+                    className="text-sm font-bold
                             text-gray-800"
-                        >
-                            Ready to extract?
-                        </p>
+                >
+                    Ready to extract?
+                </p>
 
 
-                        <p
-                            className="text-[11px]
+                <p
+                    className="text-[11px]
                             text-gray-400 mt-1"
-                        >
-                            Gemini will analyze the
-                            image and extract all
-                            available information.
-                        </p>
+                >
+                    We will analyze the
+                    image and extract all
+                    available information.
+                </p>
 
-                    </div>
+            </div>
 
 
-                    <button
-                        onClick={handleExtract}
-                        disabled={
-                            loading ||
-                            !file
-                        }
-                        className="
+            <button
+                onClick={handleExtract}
+                disabled={
+                    loading ||
+                    !file ||
+                    isLimitReached
+                }
+                className="
                             btn-primary
                             min-w-[190px]
                             py-3
@@ -1519,123 +1540,123 @@ export default function ImageExtract() {
                             disabled:opacity-60
                             disabled:cursor-not-allowed
                         "
+            >
+
+                {loading ? (
+
+                    <>
+
+                        <Loader2
+                            size={17}
+                            className="animate-spin"
+                        />
+
+                        {progress ||
+                            'Processing...'}
+
+                    </>
+
+                ) : (
+
+                    <>
+
+                        <Zap size={17} />
+
+                        Extract Image
+
+                        <ArrowRight
+                            size={15}
+                        />
+
+                    </>
+
+                )}
+
+            </button>
+
+        </div>
+
+
+        {loading && (
+
+            <div
+                className="mt-5 pt-4
+                        border-t border-gray-100"
+            >
+
+                <div
+                    className="flex items-center
+                            gap-2 mb-2"
+                >
+
+                    <div
+                        className="w-2 h-2
+                                rounded-full
+                                bg-purple-700
+                                animate-pulse"
+                    />
+
+                    <span
+                        className="text-xs
+                                font-semibold
+                                text-purple-800"
                     >
-
-                        {loading ? (
-
-                            <>
-
-                                <Loader2
-                                    size={17}
-                                    className="animate-spin"
-                                />
-
-                                {progress ||
-                                    'Processing...'}
-
-                            </>
-
-                        ) : (
-
-                            <>
-
-                                <Zap size={17} />
-
-                                Extract Image
-
-                                <ArrowRight
-                                    size={15}
-                                />
-
-                            </>
-
-                        )}
-
-                    </button>
+                        {progress}
+                    </span>
 
                 </div>
 
 
-                {loading && (
+                <div
+                    className="h-1.5 bg-gray-100
+                            rounded-full overflow-hidden"
+                >
 
                     <div
-                        className="mt-5 pt-4
-                        border-t border-gray-100"
-                    >
-
-                        <div
-                            className="flex items-center
-                            gap-2 mb-2"
-                        >
-
-                            <div
-                                className="w-2 h-2
-                                rounded-full
-                                bg-purple-700
-                                animate-pulse"
-                            />
-
-                            <span
-                                className="text-xs
-                                font-semibold
-                                text-purple-800"
-                            >
-                                {progress}
-                            </span>
-
-                        </div>
-
-
-                        <div
-                            className="h-1.5 bg-gray-100
-                            rounded-full overflow-hidden"
-                        >
-
-                            <div
-                                className="h-full
+                        className="h-full
                                 bg-purple-700
                                 rounded-full
                                 animate-pulse"
-                                style={{
-                                    width: '70%'
-                                }}
-                            />
+                        style={{
+                            width: '70%'
+                        }}
+                    />
 
-                        </div>
-
-                    </div>
-
-                )}
+                </div>
 
             </div>
 
+        )}
 
-            {/* =====================================================
+    </div>
+
+
+    {/* =====================================================
                 FOOTER
             ====================================================== */}
 
-            <div
-                className="flex items-center
+    <div
+        className="flex items-center
                 justify-center gap-2 mt-4"
-            >
+    >
 
-                <ShieldCheck
-                    size={13}
-                    className="text-gray-400"
-                />
+        <ShieldCheck
+            size={13}
+            className="text-gray-400"
+        />
 
 
-                <p
-                    className="text-[10px]
+        <p
+            className="text-[10px]
                     text-gray-400"
-                >
-                    JPG · JPEG · PNG
-                    · Maximum 20 MB per file
-                </p>
+        >
+            JPG · JPEG · PNG
+            · Maximum 10 MB per file
+        </p>
 
-            </div>
+    </div>
 
-        </div>
+</div>
 
     );
 

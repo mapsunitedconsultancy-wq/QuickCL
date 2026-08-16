@@ -11,7 +11,7 @@ const api = axios.create({ baseURL: API_URL });
 // is in localStorage. We put it in the Authorization header so
 // Express knows WHO is making the request.
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('pdftocl_token');
+  const token = localStorage.getItem('quickcl_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -24,8 +24,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('pdftocl_token');
-      window.location.href = '/login';
+      localStorage.removeItem('quickcl_token');
+      if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -40,8 +42,17 @@ export const registerUser = (data) =>
 export const loginUser = (data) =>
   api.post('/api/auth/login', data);
 
+export const checkEmailExists = (email) =>
+  api.post('/api/auth/check-email', { email });
+
 export const getMe = () =>
   api.get('/api/auth/me');
+
+export const updateProfile = (data) =>
+  api.patch('/api/auth/profile', data);
+
+export const upgradeUserPlan = (plan) =>
+  api.patch('/api/auth/upgrade', { plan });
 
 // ═══════════════════════════════════════════
 // EXTRACTION (the main feature)

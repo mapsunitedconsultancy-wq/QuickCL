@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { extractDocuments, getClients } from '../api';
+import { useAuth } from '../context/AuthContext';
 import UploadZone from '../components/uploadZone.jsx';
 import {
   Loader2,
-  Zap,
   AlertCircle,
   FileText,
   Package,
@@ -19,6 +19,7 @@ import toast from 'react-hot-toast';
 
 export default function Extract() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [docType, setDocType] = useState('BOE');
 
@@ -49,7 +50,25 @@ export default function Extract() {
       [key]: file,
     }));
 
+  const currentPlan = (user?.plan || 'demo').toLowerCase();
+  const extractionsUsed = user?.extractionsUsed || 0;
+  
+  let planLimit = 40;
+  if (currentPlan === 'pro') {
+    planLimit = 120;
+  } else if (currentPlan === 'enterprise') {
+    planLimit = Infinity;
+  }
+
+  const isLimitReached = extractionsUsed >= planLimit;
+
   const handleExtract = async () => {
+    if (isLimitReached) {
+      setError('Plan limit reached. Please upgrade to a higher plan.');
+      toast.error('Limit reached. Please upgrade.');
+      return;
+    }
+
     if (!files.invoice) {
       setError('Commercial Invoice is required');
       return;
@@ -77,7 +96,7 @@ export default function Extract() {
       setProgress('Reading text with OCR...');
 
       setTimeout(
-        () => setProgress('AI is extracting fields...'),
+        () => setProgress('Extracting fields...'),
         5000
       );
 
@@ -130,7 +149,7 @@ export default function Extract() {
               className="text-[10px] font-bold px-2 py-1 rounded
                 bg-blue-100 text-blue-800 uppercase tracking-wider"
             >
-              AI DOCUMENT EXTRACTION
+              DOCUMENT EXTRACTION
             </span>
           </div>
 
@@ -149,10 +168,24 @@ export default function Extract() {
             text-xs text-gray-400 bg-white border
             border-gray-200 rounded-lg px-3 py-2"
         >
-          <Zap size={14} className="text-blue-700" />
-          AI Powered
+          Automated
         </div>
       </div>
+
+      {/* =====================================================
+          LIMIT WARNING
+      ====================================================== */}
+      {isLimitReached && (
+        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm p-4 rounded-xl mb-6 shadow-sm">
+          <AlertCircle size={18} className="shrink-0 mt-0.5 text-amber-600" />
+          <div>
+            <p className="font-bold">{currentPlan === 'demo' ? 'Free' : currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1)} Plan Limit Reached</p>
+            <p className="text-xs mt-0.5">
+              You have used all {extractionsUsed}/{planLimit} extractions allowed on your plan. To continue creating new document extractions, please upgrade to a higher plan.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* =====================================================
           DOCUMENT TYPE
@@ -485,14 +518,14 @@ export default function Extract() {
             </p>
 
             <p className="text-[11px] text-gray-400 mt-1">
-              AI will read your documents, extract fields,
+              We will read your documents, extract fields,
               and validate HS codes.
             </p>
           </div>
 
           <button
             onClick={handleExtract}
-            disabled={loading}
+            disabled={loading || isLimitReached}
             className="
               btn-primary
               min-w-[190px]
@@ -517,7 +550,6 @@ export default function Extract() {
               </>
             ) : (
               <>
-                <Zap size={17} />
                 Start Extraction
                 <ArrowRight size={15} />
               </>
@@ -577,7 +609,7 @@ export default function Extract() {
 
         <p className="text-[10px] text-gray-400">
           Supports PDF ·
-          Maximum 20 MB per file
+          Maximum 10 MB per file
         </p>
 
       </div>

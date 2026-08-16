@@ -54,7 +54,7 @@ export default function FieldRow({ label, value, confidence, onEdit, fieldKey })
       ) : (
         <div className="flex-1 flex items-center gap-1.5">
           <span className="flex-1 px-2.5 py-1 bg-gray-50 border border-gray-200
-            rounded font-mono text-sm text-gray-800 truncate"
+            rounded font-mono text-sm text-gray-800 whitespace-pre-wrap break-all"
             title={display}>
             {display}
           </span>
