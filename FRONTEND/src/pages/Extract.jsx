@@ -163,13 +163,7 @@ export default function Extract() {
           </p>
         </div>
 
-        <div
-          className="hidden sm:flex items-center gap-2
-            text-xs text-gray-400 bg-white border
-            border-gray-200 rounded-lg px-3 py-2"
-        >
-          Automated
-        </div>
+        
       </div>
 
       {/* =====================================================

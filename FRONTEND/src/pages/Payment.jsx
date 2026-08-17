@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { upgradeUserPlan } from '../api/index.js';
 import toast from 'react-hot-toast';
+import QrCodephoto from '../assets/payment_qr.jpeg';
 import {
   QrCode,
   ArrowLeft,
@@ -34,7 +34,7 @@ export default function Payment() {
     );
   }
 
-  const handlePaymentConfirm = async (e) => {
+  const handlePaymentConfirm = (e) => {
     e.preventDefault();
     if (!transactionId.trim()) {
       toast.error('Please enter the Transaction ID / Ref No. for verification');
@@ -42,27 +42,12 @@ export default function Payment() {
     }
 
     setIsSubmitting(true);
-    try {
-      const res = await upgradeUserPlan('pro');
-      if (res.data) {
-        // Update user context
-        updateUser({
-          plan: res.data.plan,
-          extractionsUsed: res.data.extractionsUsed
-        });
-
-        toast.success('Payment Received! Plan upgraded to PRO successfully.', {
-          duration: 4000
-        });
-
-        navigate('/pricing');
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.error || 'Upgrade failed. Please try again or contact support.');
-    } finally {
+    setTimeout(() => {
       setIsSubmitting(false);
-    }
+      toast.error('Automatic instant verification is currently unavailable. Please click "Confirm on WhatsApp" below to submit your payment details for manual activation.', {
+        duration: 6000
+      });
+    }, 1200);
   };
 
   const handleWhatsAppConfirm = () => {
@@ -104,7 +89,7 @@ Please approve my upgrade.`;
             <div className="w-64 h-64 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center bg-gray-50 relative overflow-hidden mb-6 p-2">
               {!qrLoadError ? (
                 <img
-                  src="/src/assets/payment_qr.jpeg"
+                  src={QrCodephoto}
                   alt="Payment QR Code"
                   className="w-full h-full object-contain"
                   onError={() => setQrLoadError(true)}
