@@ -76,6 +76,10 @@ router.patch('/upgrade', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Invalid plan' });
     }
 
+    if (['pro', 'enterprise'].includes(plan)) {
+      return res.status(403).json({ error: 'Instant automatic upgrade is disabled. Please contact support/WhatsApp for manual verification.' });
+    }
+
     const { data: user, error } = await supabase
       .from('users')
       .update({ plan })
