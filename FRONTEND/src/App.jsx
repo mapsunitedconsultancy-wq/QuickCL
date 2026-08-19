@@ -14,6 +14,7 @@ import Settings from './pages/Settings';
 import { Loader2 } from 'lucide-react';
 import ImageExtract from './pages/ImageExtract';
 import ImageResults from './pages/ImageResults';
+import ScannedExtract from './pages/ScannedExtract';
 import Pricing from './pages/Pricing.jsx';
 import Payment from './pages/Payment.jsx';
 
@@ -79,8 +80,10 @@ export default function App() {
           <Route path="/hs-lookup" element={<Page component={HSLookup} />} />
           <Route path="/clients" element={<Page component={Clients} />} />
           <Route path="/settings" element={<Page component={Settings} />} />
-          <Route path="/image-extract" element={<Page component={ImageExtract} />}/>
+          <Route path="/image-extract" element={<Page component={ImageExtract} />} />
           <Route path="/image-results/:id" element={<Page component={ImageResults} />} />
+          <Route path="/scanned-extract" element={<Page component={ScannedExtract} />} />
+          <Route path="/scanned-results/:id" element={<Page component={Results} />} />
           <Route path="/pricing" element={<Page component={Pricing} />} />
           <Route path="/payment" element={<Page component={Payment} />} />
           {/* Catch-all */}

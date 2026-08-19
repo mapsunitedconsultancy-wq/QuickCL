@@ -3,7 +3,6 @@ import { useAuth } from '../context/AuthContext';
 
 import {
   LayoutDashboard,
-  Upload,
   Clock,
   Search,
   Users,
@@ -11,16 +10,19 @@ import {
   LogOut,
   FileText,
   Image as ImageIcon,
-  CreditCard
+  CreditCard,
+  Scan
 } from 'lucide-react';
 
 
 const navLinks = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
 
-  { to: '/extract', icon: Upload, label: 'New Extraction' },
+  { to: '/extract', icon: FileText, label: 'PDF Extraction' },
 
   { to: '/image-extract', icon: ImageIcon, label: 'Image Extraction' },
+
+  { to: '/scanned-extract', icon: Scan, label: 'Scanned PDF Extraction' },
 
   { to: '/history', icon: Clock, label: 'History' },
 

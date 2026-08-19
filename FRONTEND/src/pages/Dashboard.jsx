@@ -274,14 +274,16 @@ export default function Dashboard() {
 
                           <span
                             className={`rounded-full px-3 py-1 text-[11px] font-bold ${
-                              ext.doc_type === "BOE"
+                              ext.result_type === "scanned"
+                                ? "bg-teal-100 text-teal-800"
+                                : ext.doc_type === "BOE"
                                 ? "bg-blue-100 text-blue-900"
                                 : ext.doc_type === "SB"
                                 ? "bg-emerald-100 text-emerald-800"
                                 : "bg-purple-100 text-purple-800"
                             }`}
                           >
-                            {ext.doc_type}
+                            {ext.result_type === "scanned" ? `SCANNED ${ext.doc_type}` : ext.doc_type}
                           </span>
 
                         </td>
@@ -309,6 +311,8 @@ export default function Dashboard() {
                               navigate(
                                 ext.result_type === "image"
                                   ? `/image-results/${ext.id}`
+                                  : ext.result_type === "scanned"
+                                  ? `/scanned-results/${ext.id}`
                                   : `/results/${ext.id}`
                               )
                             }

@@ -209,17 +209,24 @@ router.get('/', authMiddleware, async (req, res) => {
       .select('id', { count: 'exact', head: true })
       .eq('user_id', req.userId);
 
+    const { count: scannedCount } = await supabase
+      .from('scanned_pdf_extractions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', req.userId);
+
     const counts = {
       boe: boeCount || 0,
       sb: sbCount || 0,
       image: imageCount || 0,
-      all: (boeCount || 0) + (sbCount || 0) + (imageCount || 0)
+      scanned: scannedCount || 0,
+      all: (boeCount || 0) + (sbCount || 0) + (imageCount || 0) + (scannedCount || 0)
     };
 
     let pdfRecords = [];
     let imageRecords = [];
+    let scannedRecords = [];
 
-    // 1. Get PDF extractions if type is not IMAGE
+    // 1. Get PDF extractions if type is not IMAGE/SCANNED
     if (!normalizedType || normalizedType === 'BOE' || normalizedType === 'SB') {
       let pdfQuery = supabase
         .from('extractions')
@@ -298,10 +305,46 @@ router.get('/', authMiddleware, async (req, res) => {
       }));
     }
 
-    // Combine PDF + IMAGE records
+    // 3. Get SCANNED extractions if type is SCANNED
+    if (!normalizedType || normalizedType === 'SCANNED' || normalizedType === 'scanned') {
+      let scannedQuery = supabase
+        .from('scanned_pdf_extractions')
+        .select(
+          `
+          id,
+          user_id,
+          client_id,
+          job_number,
+          file_reference,
+          status,
+          accuracy_score,
+          extraction_time_ms,
+          created_at,
+          doc_type
+          `
+        )
+        .eq('user_id', req.userId);
+
+      if (normalizedSearch) {
+        scannedQuery = scannedQuery.ilike('job_number', `%${normalizedSearch}%`);
+      }
+
+      const { data: scannedData, error: scannedError } = await scannedQuery;
+      if (scannedError) throw scannedError;
+
+      scannedRecords = (scannedData || []).map((ext) => ({
+        ...ext,
+        result_type: 'scanned',
+        file_type: 'pdf',
+        display_type: 'SCANNED',
+      }));
+    }
+
+    // Combine PDF + IMAGE + SCANNED records
     let combined = [
       ...pdfRecords,
       ...imageRecords,
+      ...scannedRecords,
     ];
 
     // Sort newest first
@@ -356,28 +399,69 @@ router.get('/', authMiddleware, async (req, res) => {
 // ============================================================
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
-    const { data: extraction, error } = await supabase
+    let extraction;
+    let items = [];
+    let itemsTable = 'extraction_items';
+    let foreignKey = 'extraction_id';
+    let isScanned = false;
+    let resultType = 'pdf';
+
+    const { data: standardExt } = await supabase
       .from('extractions')
       .select('*')
       .eq('id', req.params.id)
       .eq('user_id', req.userId)
-      .single();
+      .maybeSingle();
 
-    if (error || !extraction) {
-      return res.status(404).json({
-        error: 'Extraction not found',
-      });
+    if (standardExt) {
+      extraction = standardExt;
+      itemsTable = 'extraction_items';
+      foreignKey = 'extraction_id';
+      resultType = 'pdf';
+    } else {
+      const { data: scanExt } = await supabase
+        .from('scanned_pdf_extractions')
+        .select('*')
+        .eq('id', req.params.id)
+        .eq('user_id', req.userId)
+        .maybeSingle();
+
+      if (scanExt) {
+        extraction = scanExt;
+        itemsTable = 'scanned_pdf_extraction_items';
+        foreignKey = 'scanned_pdf_extraction_id';
+        isScanned = true;
+        resultType = 'scanned';
+      } else {
+        const { data: imgExt } = await supabase
+          .from('image_extractions')
+          .select('*')
+          .eq('id', req.params.id)
+          .eq('user_id', req.userId)
+          .maybeSingle();
+
+        if (!imgExt) {
+          return res.status(404).json({
+            error: 'Extraction not found',
+          });
+        }
+        extraction = imgExt;
+        itemsTable = 'image_extraction_items';
+        foreignKey = 'image_extraction_id';
+        resultType = 'image';
+      }
     }
 
-    const { data: items } = await supabase
-      .from('extraction_items')
+    const { data: fetchedItems } = await supabase
+      .from(itemsTable)
       .select('*')
-      .eq('extraction_id', req.params.id)
+      .eq(foreignKey, req.params.id)
       .order('sr_no');
 
     res.json({
       ...extraction,
-      items: items || [],
+      items: fetchedItems || [],
+      result_type: resultType
     });
 
   } catch (err) {
@@ -397,17 +481,46 @@ router.patch('/:id', authMiddleware, async (req, res) => {
     const { field, newValue } = req.body;
 
     // 1. Get current data
-    const { data: extraction } = await supabase
+    let extraction;
+    let targetTable = 'extractions';
+
+    const { data: standardExt } = await supabase
       .from('extractions')
       .select('extracted_json')
       .eq('id', req.params.id)
       .eq('user_id', req.userId)
-      .single();
+      .maybeSingle();
 
-    if (!extraction) {
-      return res.status(404).json({
-        error: 'Extraction not found',
-      });
+    if (standardExt) {
+      extraction = standardExt;
+      targetTable = 'extractions';
+    } else {
+      const { data: scanExt } = await supabase
+        .from('scanned_pdf_extractions')
+        .select('extracted_json')
+        .eq('id', req.params.id)
+        .eq('user_id', req.userId)
+        .maybeSingle();
+
+      if (scanExt) {
+        extraction = scanExt;
+        targetTable = 'scanned_pdf_extractions';
+      } else {
+        const { data: imgExt } = await supabase
+          .from('image_extractions')
+          .select('extracted_json')
+          .eq('id', req.params.id)
+          .eq('user_id', req.userId)
+          .maybeSingle();
+
+        if (!imgExt) {
+          return res.status(404).json({
+            error: 'Extraction not found',
+          });
+        }
+        extraction = imgExt;
+        targetTable = 'image_extractions';
+      }
     }
 
     // 2. Navigate to the field
@@ -435,7 +548,7 @@ router.patch('/:id', authMiddleware, async (req, res) => {
 
     // 4. Save
     const { error: updateError } = await supabase
-      .from('extractions')
+      .from(targetTable)
       .update({
         extracted_json: json,
       })
@@ -479,23 +592,59 @@ router.get('/:id/excel', authMiddleware, async (req, res) => {
   const XLSX = require('xlsx');
 
   try {
-    const { data: ext } = await supabase
+    let ext;
+    let items = [];
+    let itemsTable = 'extraction_items';
+    let foreignKey = 'extraction_id';
+
+    const { data: standardExt } = await supabase
       .from('extractions')
       .select('*')
       .eq('id', req.params.id)
       .eq('user_id', req.userId)
-      .single();
+      .maybeSingle();
 
-    if (!ext) {
-      return res.status(404).json({
-        error: 'Extraction not found',
-      });
+    if (standardExt) {
+      ext = standardExt;
+      itemsTable = 'extraction_items';
+      foreignKey = 'extraction_id';
+    } else {
+      const { data: scanExt } = await supabase
+        .from('scanned_pdf_extractions')
+        .select('*')
+        .eq('id', req.params.id)
+        .eq('user_id', req.userId)
+        .maybeSingle();
+
+      if (scanExt) {
+        ext = scanExt;
+        itemsTable = 'scanned_pdf_extraction_items';
+        foreignKey = 'scanned_pdf_extraction_id';
+      } else {
+        const { data: imgExt } = await supabase
+          .from('image_extractions')
+          .select('*')
+          .eq('id', req.params.id)
+          .eq('user_id', req.userId)
+          .maybeSingle();
+
+        if (!imgExt) {
+          return res.status(404).json({
+            error: 'Extraction not found',
+          });
+        }
+        ext = imgExt;
+        itemsTable = 'image_extraction_items';
+        foreignKey = 'image_extraction_id';
+      }
     }
 
-    const { data: items } = await supabase
-      .from('extraction_items')
+    const { data: fetchedItems } = await supabase
+      .from(itemsTable)
       .select('*')
-      .eq('extraction_id', req.params.id);
+      .eq(foreignKey, req.params.id);
+
+    items = fetchedItems || [];
 
     const wb = XLSX.utils.book_new();
 
@@ -568,6 +717,77 @@ router.get('/:id/excel', authMiddleware, async (req, res) => {
     res.status(500).json({
       error: err.message,
     });
+  }
+});
+
+
+// ============================================================
+// POST /api/extractions/:id/confirm-hs
+// Confirm HS code for any extraction type
+// ============================================================
+router.post('/:id/confirm-hs', authMiddleware, async (req, res) => {
+  const { itemId, hsCode } = req.body;
+  if (!itemId || !hsCode) {
+    return res.status(400).json({ error: 'itemId and hsCode are required' });
+  }
+
+  try {
+    const cleanCode = String(hsCode).trim().replace(/\s/g, '');
+
+    // Verify against tariff database
+    const { data: tariff, error: tariffError } = await supabase
+      .from('hs_codes')
+      .select('*')
+      .eq('hsn', cleanCode)
+      .maybeSingle();
+
+    if (tariffError) throw tariffError;
+    if (!tariff) {
+      return res.status(400).json({ error: 'HS code does not exist in tariff database' });
+    }
+
+    // Determine the items table to update
+    let targetTable = 'extraction_items';
+    
+    // Check if itemId exists in extraction_items
+    const { data: standardItem } = await supabase
+      .from('extraction_items')
+      .select('id')
+      .eq('id', itemId)
+      .maybeSingle();
+
+    if (!standardItem) {
+      // Check scanned_pdf_extraction_items
+      const { data: scannedItem } = await supabase
+        .from('scanned_pdf_extraction_items')
+        .select('id')
+        .eq('id', itemId)
+        .maybeSingle();
+
+      if (scannedItem) {
+        targetTable = 'scanned_pdf_extraction_items';
+      } else {
+        // Fallback to image_extraction_items
+        targetTable = 'image_extraction_items';
+      }
+    }
+
+    const { error: updateError } = await supabase
+      .from(targetTable)
+      .update({ user_confirmed_hs: cleanCode })
+      .eq('id', itemId);
+
+    if (updateError) throw updateError;
+
+    res.json({
+      success: true,
+      confirmedCode: cleanCode,
+      tariff
+    });
+
+  } catch (err) {
+    console.error('HS confirmation error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 

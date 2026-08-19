@@ -74,6 +74,13 @@ export const extractImage = (formData) => {
   });
 };
 
+export const extractScannedDocuments = (formData) => {
+  return api.post('/api/scanned-extract', formData, {
+    headers: {'Content-Type': 'multipart/form-data' },
+    timeout: 180000, // 3 min timeout (scanned PDFs can be larger),
+  });
+};
+
 export const getExtraction = (id) =>
   api.get(`/api/extractions/${id}`);
 

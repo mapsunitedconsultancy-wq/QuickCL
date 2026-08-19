@@ -131,7 +131,7 @@ export default function History() {
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState('');
   const [loading, setLoading] = useState(true);
-  const [counts, setCounts] = useState({ boe: 0, sb: 0, image: 0, all: 0 });
+  const [counts, setCounts] = useState({ boe: 0, sb: 0, image: 0, scanned: 0, all: 0 });
 
   const fetchData = (p = 1, type = '') => {
     setLoading(true);
@@ -266,6 +266,7 @@ export default function History() {
               { label: 'BOE', value: 'BOE', count: counts.boe },
               { label: 'SB', value: 'SB', count: counts.sb },
               { label: 'Image', value: 'IMAGE', count: counts.image },
+              { label: 'Scanned', value: 'SCANNED', count: counts.scanned || 0 },
             ].map((btn) => (
 
               <button
@@ -419,6 +420,8 @@ export default function History() {
                   navigate(
                     ext.result_type === 'image'
                       ? `/image-results/${ext.id}`
+                      : ext.result_type === 'scanned'
+                      ? `/scanned-results/${ext.id}`
                       : `/results/${ext.id}`
                   )
                 }
@@ -434,12 +437,16 @@ export default function History() {
 
                     <span
                       className={`inline-flex rounded-lg px-2.5 py-1 text-[10px] font-black ${
-                        ext.doc_type === 'BOE'
+                        ext.result_type === 'scanned'
+                          ? 'bg-teal-100 text-teal-800'
+                          : ext.doc_type === 'BOE'
                           ? 'bg-blue-100 text-blue-800'
+                          : ext.doc_type === 'IMAGE' || ext.doc_type === 'image'
+                          ? 'bg-purple-100 text-purple-800'
                           : 'bg-green-100 text-green-800'
                       }`}
                     >
-                      {ext.doc_type}
+                      {ext.result_type === 'scanned' ? `SCANNED ${ext.doc_type}` : ext.doc_type}
                     </span>
 
                   </div>
@@ -527,12 +534,16 @@ export default function History() {
 
                       <span
                         className={`shrink-0 rounded-lg px-2.5 py-1 text-[10px] font-black ${
-                          ext.doc_type === 'BOE'
+                          ext.result_type === 'scanned'
+                            ? 'bg-teal-100 text-teal-800'
+                            : ext.doc_type === 'BOE'
                             ? 'bg-blue-100 text-blue-800'
+                            : ext.doc_type === 'IMAGE' || ext.doc_type === 'image'
+                            ? 'bg-purple-100 text-purple-800'
                             : 'bg-green-100 text-green-800'
                         }`}
                       >
-                        {ext.doc_type}
+                        {ext.result_type === 'scanned' ? `SCANNED ${ext.doc_type}` : ext.doc_type}
                       </span>
 
                       <div className="min-w-0">
