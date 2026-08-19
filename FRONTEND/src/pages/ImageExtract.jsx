@@ -907,7 +907,7 @@
 
 
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -962,19 +962,13 @@ export default function ImageExtract() {
 
 
     // ============================================================
-    // SELECT IMAGE
+    // SELECT & PROCESS IMAGE
     // ============================================================
 
-    const handleFileChange = (event) => {
-
-        const selectedFile =
-            event.target.files?.[0];
-
-
+    const processSelectedFile = (selectedFile) => {
         if (!selectedFile) {
             return;
         }
-
 
         const allowedTypes = [
             'image/jpeg',
@@ -982,51 +976,73 @@ export default function ImageExtract() {
             'image/png'
         ];
 
-
         if (
             !allowedTypes.includes(
                 selectedFile.type
             )
         ) {
-
             setError(
                 'Only JPG, JPEG and PNG images are supported.'
             );
-
             return;
-
         }
 
-
         // Maximum 10 MB
-
         if (
             selectedFile.size >
             10 * 1024 * 1024
         ) {
-
             setError(
                 'Image size must be less than 10 MB.'
             );
-
             return;
-
         }
 
-
         setError('');
-
         setFile(selectedFile);
-
 
         const objectUrl =
             URL.createObjectURL(
                 selectedFile
             );
-
         setPreview(objectUrl);
-
     };
+
+    const handleFileChange = (event) => {
+        const selectedFile =
+            event.target.files?.[0];
+        processSelectedFile(selectedFile);
+    };
+
+    // Listen for paste event to capture clipboard image
+    useEffect(() => {
+        const handlePaste = (event) => {
+            if (isLimitReached) return;
+            const items = event.clipboardData?.items;
+            if (!items) return;
+
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.startsWith('image/')) {
+                    const blob = items[i].getAsFile();
+                    if (blob) {
+                        const pastedFile = new File(
+                            [blob],
+                            `pasted-image-${Date.now()}.${blob.type.split('/')[1] || 'png'}`,
+                            { type: blob.type }
+                        );
+                        processSelectedFile(pastedFile);
+                        toast.success('Image pasted from clipboard!');
+                        break;
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('paste', handlePaste);
+        return () => {
+            window.removeEventListener('paste', handlePaste);
+        };
+    }, [isLimitReached]);
 
 
     // ============================================================
@@ -1209,9 +1225,7 @@ export default function ImageExtract() {
                         className="text-sm text-gray-400
                         mt-1"
                     >
-                        Upload a JPG, JPEG or PNG image
-                        and extract all
-                        available information.
+                        Upload or paste your Commercial Invoice, Bill of Lading, or Packing List image to extract structured customs data automatically.
                     </p>
 
                 </div>
@@ -1273,8 +1287,7 @@ export default function ImageExtract() {
                     className="text-[11px]
                             text-gray-400"
                 >
-                    Supported formats: JPG,
-                    JPEG and PNG
+                    Add / paste your commercial invoice, bill of lading, or packing list image
                 </p>
 
             </div>
@@ -1334,7 +1347,9 @@ export default function ImageExtract() {
                         className="text-sm
                                 font-bold text-gray-800"
                     >
-                        Click to upload an image
+                       
+                       Upload your Invoice, Bill of Lading, or Packing List — Drag, Drop, or Paste.
+                
                     </p>
 
 
@@ -1342,8 +1357,7 @@ export default function ImageExtract() {
                         className="text-xs
                                 text-gray-400 mt-1"
                     >
-                        JPG · JPEG · PNG
-                        · Maximum 10 MB
+                        Supports JPG, JPEG, PNG · Paste directly from clipboard (Ctrl+V) · Max 10 MB
                     </p>
 
                 </div>

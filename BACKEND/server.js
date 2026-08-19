@@ -59,6 +59,7 @@ app.use('/api/hs', require('./routes/hs.js'));
 app.use('/api/clients', require('./routes/clients.js'));
 app.use('/api/exchange-rate', require('./routes/exchangeRate.js'));
 app.use("/api/image-extract", imageExtractRoutes );
+app.use("/api/scanned-extract", require("./routes/scannedExtract"));
 
 // ─── HEALTH CHECK ───
 app.get('/api/health', (req, res) => {

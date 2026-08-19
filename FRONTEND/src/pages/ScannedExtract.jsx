@@ -1,0 +1,574 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { extractScannedDocuments, getClients } from '../api';
+import UploadZone from '../components/uploadZone.jsx';
+import {
+    Loader2,
+    AlertCircle,
+    FileText,
+    Package,
+    FileCheck,
+    ShieldCheck,
+    Building2,
+    ArrowRight,
+    CheckCircle2,
+} from 'lucide-react';
+import toast from 'react-hot-toast';
+
+export default function ScannedExtract() {
+    const navigate = useNavigate();
+    const { user } = useAuth();
+
+    const [docType, setDocType] = useState('BOE');
+
+    const [files, setFiles] = useState({
+        invoice: null,
+        packingList: null,
+        billOfLading: null,
+        coo: null,
+        licence: null,
+    });
+
+    const [clients, setClients] = useState([]);
+    const [selectedClient, setSelectedClient] = useState('');
+
+    const [loading, setLoading] = useState(false);
+    const [progress, setProgress] = useState('');
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        getClients()
+            .then((res) => setClients(res.data || []))
+            .catch(() => { });
+    }, []);
+
+    const setFile = (key) => (file) =>
+        setFiles((p) => ({
+            ...p,
+            [key]: file,
+        }));
+
+    const currentPlan = (user?.plan || 'demo').toLowerCase();
+    const extractionsUsed = user?.extractionsUsed || 0;
+
+    let planLimit = 40;
+    if (currentPlan === 'pro') {
+        planLimit = 120;
+    } else if (currentPlan === 'enterprise') {
+        planLimit = Infinity;
+    }
+
+    const isLimitReached = extractionsUsed >= planLimit;
+
+    const handleExtract = async () => {
+        if (isLimitReached) {
+            setError('Plan limit reached. Please upgrade to a higher plan.');
+            toast.error('Limit reached. Please upgrade.');
+            return;
+        }
+
+        if (!files.invoice) {
+            setError('Commercial Invoice is required');
+            return;
+        }
+
+        setLoading(true);
+        setError('');
+        setProgress('Uploading scanned documents...');
+
+        try {
+            const formData = new FormData();
+            formData.append('docType', docType);
+
+            if (selectedClient) {
+                formData.append('clientId', selectedClient);
+            }
+
+            Object.entries(files).forEach(([key, file]) => {
+                if (file) {
+                    formData.append(key, file);
+                }
+            });
+
+            setProgress('Sending PDFs to AI Model...');
+
+            const messages = [
+                'AI is reading the scanned PDF pages...',
+                'Performing precise native OCR alignment...',
+                'Extracting line items and customs fields...',
+                'Validating extraction schema accuracy...',
+                'Almost done, saving results...'
+            ];
+            let msgIdx = 0;
+            const interval = setInterval(() => {
+                if (msgIdx < messages.length) {
+                    setProgress(messages[msgIdx]);
+                    msgIdx++;
+                }
+            }, 6000);
+
+            const res = await extractScannedDocuments(formData);
+            clearInterval(interval);
+
+            setProgress('Extraction completed...');
+            const id = res.data.id;
+
+            if (!id) {
+                throw new Error('Extraction ID was not returned by the server.');
+            }
+
+            toast.success('Scanned PDFs extracted successfully!');
+            navigate(`/scanned-results/${id}`);
+        } catch (err) {
+            console.error('Scanned extraction error:', err);
+            setError(
+                err.response?.data?.message ||
+                err.response?.data?.error ||
+                'Scanned PDF extraction failed. Try again.'
+            );
+            toast.error('Extraction failed');
+        } finally {
+            setLoading(false);
+            setProgress('');
+        }
+    };
+
+    return (
+        <div className="max-w-5xl mx-auto pb-10">
+
+            {/* =====================================================
+          HEADER
+      ====================================================== */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                    <div className="flex items-center gap-2 mb-1">
+                        <span
+                            className="text-[10px] font-bold px-2 py-1 rounded
+                bg-blue-100 text-blue-800 uppercase tracking-wider"
+                        >
+                            SCANNED PDF EXTRACTION
+                        </span>
+                    </div>
+
+                    <h1 className="text-2xl font-black text-gray-900">
+                        Extract From Scanned PDF
+                    </h1>
+
+                    <p className="text-sm text-gray-400 mt-1">
+                        Upload scanned customs documents in PDF format to initiate a new extraction process.
+
+                    </p>
+                </div>
+            </div>
+
+            {/* =====================================================
+          LIMIT WARNING
+      ====================================================== */}
+            {isLimitReached && (
+                <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm p-4 rounded-xl mb-6 shadow-sm">
+                    <AlertCircle size={18} className="shrink-0 mt-0.5 text-amber-600" />
+                    <div>
+                        <p className="font-bold">{currentPlan === 'demo' ? 'Free' : currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1)} Plan Limit Reached</p>
+                        <p className="text-xs mt-0.5">
+                            You have used all {extractionsUsed}/{planLimit} extractions allowed on your plan. To continue creating new document extractions, please upgrade to a higher plan.
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* =====================================================
+          DOCUMENT TYPE
+      ====================================================== */}
+            <div className="card-base p-5 mb-4">
+                <div className="flex items-center gap-2 mb-4">
+                    <div
+                        className="w-8 h-8 rounded-lg bg-blue-100
+              text-blue-800 flex items-center justify-center"
+                    >
+                        <FileText size={16} />
+                    </div>
+
+                    <div>
+                        <h2 className="text-sm font-bold text-gray-800">
+                            Document Type
+                        </h2>
+
+                        <p className="text-[11px] text-gray-400">
+                            Select the customs declaration you are preparing
+                        </p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                    {/* BOE */}
+                    <button
+                        type="button"
+                        onClick={() => setDocType('BOE')}
+                        className={`
+              text-left p-4 rounded-xl border-2
+              transition-all
+              ${docType === 'BOE'
+                                ? 'border-blue-700 bg-blue-50'
+                                : 'border-gray-200 bg-white hover:border-blue-200 hover:bg-gray-50'
+                            }
+            `}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div
+                                className={`
+                  w-10 h-10 rounded-lg flex items-center
+                  justify-center text-xs font-black
+                  ${docType === 'BOE'
+                                        ? 'bg-blue-800 text-white'
+                                        : 'bg-gray-100 text-gray-500'
+                                    }
+                `}
+                            >
+                                BOE
+                            </div>
+
+                            <div className="flex-1">
+                                <p className="text-sm font-bold text-gray-800">
+                                    Bill of Entry
+                                </p>
+
+                                <p className="text-[11px] text-gray-400">
+                                    Import declaration
+                                </p>
+                            </div>
+
+                            {docType === 'BOE' && (
+                                <CheckCircle2
+                                    size={18}
+                                    className="text-blue-700"
+                                />
+                            )}
+                        </div>
+                    </button>
+
+                    {/* SB */}
+                    <button
+                        type="button"
+                        onClick={() => setDocType('SB')}
+                        className={`
+              text-left p-4 rounded-xl border-2
+              transition-all
+              ${docType === 'SB'
+                                ? 'border-green-600 bg-green-50'
+                                : 'border-gray-200 bg-white hover:border-green-200 hover:bg-gray-50'
+                            }
+            `}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div
+                                className={`
+                  w-10 h-10 rounded-lg flex items-center
+                  justify-center text-xs font-black
+                  ${docType === 'SB'
+                                        ? 'bg-green-700 text-white'
+                                        : 'bg-gray-100 text-gray-500'
+                                    }
+                `}
+                            >
+                                SB
+                            </div>
+
+                            <div className="flex-1">
+                                <p className="text-sm font-bold text-gray-800">
+                                    Shipping Bill
+                                </p>
+
+                                <p className="text-[11px] text-gray-400">
+                                    Export declaration
+                                </p>
+                            </div>
+
+                            {docType === 'SB' && (
+                                <CheckCircle2
+                                    size={18}
+                                    className="text-green-700"
+                                />
+                            )}
+                        </div>
+                    </button>
+
+                </div>
+            </div>
+
+            {/* =====================================================
+          REQUIRED DOCUMENTS
+      ====================================================== */}
+            <div className="card-base p-5 mb-4">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <div
+                            className="w-8 h-8 rounded-lg bg-blue-100
+                text-blue-800 flex items-center justify-center"
+                        >
+                            <Package size={16} />
+                        </div>
+
+                        <div>
+                            <h2 className="text-sm font-bold text-gray-800">
+                                Required Documents
+                            </h2>
+
+                            <p className="text-[11px] text-gray-400">
+                                Upload the scanned PDF files required for extraction
+                            </p>
+                        </div>
+                    </div>
+
+                    <span
+                        className="text-[10px] font-bold px-2 py-1
+              rounded bg-red-50 text-red-600"
+                    >
+                        REQUIRED
+                    </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+                    <UploadZone
+                        label="Commercial Invoice"
+                        required
+                        file={files.invoice}
+                        onFileChange={setFile('invoice')}
+                    />
+
+                    <UploadZone
+                        label="Packing List"
+                        file={files.packingList}
+                        onFileChange={setFile('packingList')}
+                    />
+
+                    <UploadZone
+                        label="Bill of Lading / AWB"
+                        file={files.billOfLading}
+                        onFileChange={setFile('billOfLading')}
+                    />
+
+                </div>
+            </div>
+
+            {/* =====================================================
+          OPTIONAL DOCUMENTS
+      ====================================================== */}
+            <div className="card-base p-5 mb-4">
+                <div className="flex items-center gap-2 mb-4">
+                    <div
+                        className="w-8 h-8 rounded-lg bg-gray-100
+              text-gray-600 flex items-center justify-center"
+                    >
+                        <FileCheck size={16} />
+                    </div>
+
+                    <div>
+                        <h2 className="text-sm font-bold text-gray-800">
+                            Supporting Documents
+                        </h2>
+
+                        <p className="text-[11px] text-gray-400">
+                            Optional documents can improve extraction accuracy
+                        </p>
+                    </div>
+
+                    <span
+                        className="ml-auto text-[10px] font-bold
+              px-2 py-1 rounded bg-gray-100 text-gray-500"
+                    >
+                        OPTIONAL
+                    </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                    <UploadZone
+                        label="Certificate of Origin (COO)"
+                        file={files.coo}
+                        onFileChange={setFile('coo')}
+                    />
+
+                    <UploadZone
+                        label="EPCG / DEEC Licence"
+                        file={files.licence}
+                        onFileChange={setFile('licence')}
+                    />
+
+                </div>
+            </div>
+
+            {/* =====================================================
+          CLIENT SELECTION
+      ====================================================== */}
+            {clients.length > 0 && (
+                <div className="card-base p-5 mb-4">
+                    <div className="flex items-center gap-2 mb-4">
+                        <div
+                            className="w-8 h-8 rounded-lg bg-purple-100
+                text-purple-700 flex items-center justify-center"
+                        >
+                            <Building2 size={16} />
+                        </div>
+
+                        <div>
+                            <h2 className="text-sm font-bold text-gray-800">
+                                Client Details
+                            </h2>
+
+                            <p className="text-[11px] text-gray-400">
+                                Select a saved client to automatically fill importer/exporter information
+                            </p>
+                        </div>
+                    </div>
+
+                    <select
+                        className="input-field"
+                        value={selectedClient}
+                        onChange={(e) => setSelectedClient(e.target.value)}
+                    >
+                        <option value="">
+                            -- No client selected --
+                        </option>
+
+                        {clients.map((c) => (
+                            <option key={c.id} value={c.id}>
+                                {c.client_name} ({c.iec_code})
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            )}
+
+            {/* =====================================================
+          ERROR
+      ====================================================== */}
+            {error && (
+                <div
+                    className="flex items-start gap-3 bg-red-50
+            border border-red-200 text-red-700 text-sm
+            p-4 rounded-xl mb-4"
+                >
+                    <AlertCircle
+                        size={18}
+                        className="shrink-0 mt-0.5"
+                    />
+
+                    <div>
+                        <p className="font-bold">
+                            Extraction Error
+                        </p>
+
+                        <p className="text-xs mt-0.5">
+                            {error}
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* =====================================================
+          EXTRACTION ACTION
+      ====================================================== */}
+            <div className="card-base p-5">
+                <div
+                    className="flex flex-col sm:flex-row
+            sm:items-center justify-between gap-4"
+                >
+                    <div>
+                        <p className="text-sm font-bold text-gray-800">
+                            Ready to perform scanned extraction?
+                        </p>
+
+                        <p className="text-[11px] text-gray-400 mt-1">
+                            QuickCL will send these scanned documents to Gemini to run a high-precision OCR extraction.
+                        </p>
+                    </div>
+
+                    <button
+                        onClick={handleExtract}
+                        disabled={loading || !files.invoice || isLimitReached}
+                        className="
+              btn-primary
+              min-w-[190px]
+              py-3
+              px-5
+              text-sm
+              flex
+              items-center
+              justify-center
+              gap-2
+              disabled:opacity-60
+              disabled:cursor-not-allowed
+            "
+                    >
+                        {loading ? (
+                            <>
+                                <Loader2
+                                    size={17}
+                                    className="animate-spin"
+                                />
+                                {progress || 'Processing...'}
+                            </>
+                        ) : (
+                            <>
+                                Start Extraction
+                                <ArrowRight size={15} />
+                            </>
+                        )}
+                    </button>
+                </div>
+
+                {/* Progress */}
+                {loading && (
+                    <div
+                        className="mt-5 pt-4 border-t
+              border-gray-100"
+                    >
+                        <div className="flex items-center gap-2 mb-2">
+                            <div
+                                className="w-2 h-2 rounded-full
+                  bg-blue-700 animate-pulse"
+                            />
+
+                            <span
+                                className="text-xs font-semibold
+                  text-blue-800"
+                            >
+                                {progress}
+                            </span>
+                        </div>
+
+                        <div
+                            className="h-1.5 bg-gray-100
+                rounded-full overflow-hidden"
+                        >
+                            <div
+                                className="h-full bg-blue-700
+                  rounded-full animate-pulse"
+                                style={{ width: '80%' }}
+                            />
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* =====================================================
+          FOOTER INFO
+      ====================================================== */}
+            <div className="flex items-center justify-center gap-2 mt-4">
+                <ShieldCheck
+                    size={13}
+                    className="text-gray-400"
+                />
+
+                <p className="text-[10px] text-gray-400">
+                    Supports PDF · Maximum 20 MB per file · Secure data transport
+                </p>
+            </div>
+
+        </div>
+    );
+}
+

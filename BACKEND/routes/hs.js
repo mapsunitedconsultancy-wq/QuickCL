@@ -222,12 +222,29 @@ router.post('/confirm', async (req, res) => {
             });
         }
 
-        // ----------------------------------------------------
-        // Save confirmed HS code
-        // ----------------------------------------------------
+        let targetTable = 'extraction_items';
+        const { data: standardItem, error: checkError } = await supabase
+            .from('extraction_items')
+            .select('id')
+            .eq('id', itemId)
+            .maybeSingle();
+
+        if (!standardItem) {
+            const { data: scannedItem } = await supabase
+                .from('scanned_pdf_extraction_items')
+                .select('id')
+                .eq('id', itemId)
+                .maybeSingle();
+            
+            if (scannedItem) {
+                targetTable = 'scanned_pdf_extraction_items';
+            } else {
+                targetTable = 'image_extraction_items';
+            }
+        }
 
         const { error } = await supabase
-            .from('extraction_items')
+            .from(targetTable)
             .update({
                 user_confirmed_hs: cleanCode
             })
