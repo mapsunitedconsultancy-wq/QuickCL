@@ -2755,7 +2755,7 @@ function DynamicSection({ sectionKey, section, number, onEdit }) {
                             label={field.label}
                             value={displayValue(field.value)}
                             confidence={field.confidence}
-                            fieldKey={field.key}
+                            fieldKey={sectionKey ? `${sectionKey}.${field.key}` : field.key}
                             onEdit={onEdit}
                         />
                     ))}
@@ -2892,9 +2892,9 @@ export default function Results() {
             });
         });
 
-        const header = ['Section', 'Field', 'Value', 'Confidence'];
+        const header = ['Section', 'Field', 'Value'];
         const escapeCSV = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
-        const csv = [header, ...rows.map(row => [row.section, row.field, row.value, row.confidence])]
+        const csv = [header, ...rows.map(row => [row.section, row.field, row.value])]
             .map(row => row.map(escapeCSV).join(','))
             .join('\n');
 
@@ -2905,8 +2905,10 @@ export default function Results() {
         link.download = `${data.job_number || data.jobNumber || 'extraction'}.csv`;
         document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }, 150);
         toast.success('CSV downloaded');
     }, [data, items]);
 
@@ -3129,7 +3131,8 @@ export default function Results() {
                                                     label={field.label}
                                                     value={displayValue(field.value)}
                                                     confidence={field.confidence}
-                                                    fieldKey={field.key}
+                                                    fieldKey={`containers.${index}.${field.key}`}
+                                                    onEdit={handleFieldEdit}
                                                 />
                                             ))}
                                         </div>
@@ -3189,6 +3192,8 @@ export default function Results() {
                                                 label="Description"
                                                 value={displayValue(description)}
                                                 confidence={getConfidence(item.item_description || item.description) || 0.95}
+                                                fieldKey={`items.${item.id}.item_description`}
+                                                onEdit={handleFieldEdit}
                                             />
                                         )}
 
@@ -3198,6 +3203,8 @@ export default function Results() {
                                                     label="HS Code"
                                                     value={displayValue(hsCode)}
                                                     confidence={getConfidence(item.hs_code) || Number(item.confidence_score) || 0}
+                                                    fieldKey={`items.${item.id}.hs_code`}
+                                                    onEdit={handleFieldEdit}
                                                 />
                                                 <div className="mx-5 mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
                                                     <div className="flex items-start gap-3">
@@ -3222,11 +3229,11 @@ export default function Results() {
                                         )}
 
                                         {[
-                                            ['Quantity', item.quantity],
-                                            ['Unit', item.unit],
-                                            ['Unit Price', item.unit_price],
-                                            ['Total Value', item.total_value]
-                                        ].map(([fieldLabel, fieldValue]) => {
+                                            ['Quantity', item.quantity, 'quantity'],
+                                            ['Unit', item.unit, 'unit'],
+                                            ['Unit Price', item.unit_price, 'unit_price'],
+                                            ['Total Value', item.total_value, 'total_value']
+                                        ].map(([fieldLabel, fieldValue, colName]) => {
                                             if (!hasValue(getValue(fieldValue))) return null;
                                             return (
                                                 <FieldRow
@@ -3234,6 +3241,8 @@ export default function Results() {
                                                     label={fieldLabel}
                                                     value={displayValue(getValue(fieldValue))}
                                                     confidence={getConfidence(fieldValue) || 0.95}
+                                                    fieldKey={`items.${item.id}.${colName}`}
+                                                    onEdit={handleFieldEdit}
                                                 />
                                             );
                                         })}
