@@ -102,8 +102,12 @@ export const downloadExcel = async (id, jobNumber) => {
   const link = document.createElement('a');
   link.href = url;
   link.download = `${jobNumber || 'extraction'}.xlsx`;
+  document.body.appendChild(link);
   link.click();
-  window.URL.revokeObjectURL(url);
+  setTimeout(() => {
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }, 150);
 };
 
 export const downloadCSV = async (id, jobNumber) => {
@@ -112,8 +116,12 @@ export const downloadCSV = async (id, jobNumber) => {
   const link = document.createElement('a');
   link.href = url;
   link.download = `${jobNumber || 'extraction'}.csv`;
+  document.body.appendChild(link);
   link.click();
-  window.URL.revokeObjectURL(url);
+  setTimeout(() => {
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }, 150);
 };
 
 // ═══════════════════════════════════════════
