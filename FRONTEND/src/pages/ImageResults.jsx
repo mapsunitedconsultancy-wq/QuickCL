@@ -3659,14 +3659,14 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getImageExtraction } from '../api';
+import { getImageExtraction, downloadExcel, editField } from '../api';
 import FieldRow from '../components/FieldRow.jsx';
 import ConfidenceBadge from '../components/ConfidenceBadge.jsx';
 import AsciiResultView from '../components/AsciiResultView.jsx';
 import {
     Loader2, Download, FileText, ArrowLeft, ShieldCheck, ShieldAlert,
     AlertTriangle, CheckCircle2, Clock, Database, Package, Copy, Check,
-    Search, ExternalLink
+    Search, ExternalLink, FileSpreadsheet
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -3826,12 +3826,12 @@ export default function ImageResults() {
 
     const handleCSVDownload = useCallback(() => {
         if (!data) return;
-        const rows = [['Section', 'Field', 'Value', 'Confidence']];
+        const rows = [['Section', 'Field', 'Value']];
         const escapeCSV = val => `"${String(val ?? '').replace(/"/g, '""')}"`;
 
         // Add Fields
         fields.forEach(f => {
-            rows.push(['General Information', f.label, displayValue(f.value), `${(f.confidence * 100).toFixed(1)}%`]);
+            rows.push(['General Information', f.label, displayValue(f.value)]);
         });
 
         // Add Tables
@@ -3841,9 +3841,8 @@ export default function ImageResults() {
                 const rowSection = `${tableName} (Row ${rowIndex + 1})`;
                 Object.entries(row).forEach(([colKey, cellObj]) => {
                     const val = getValue(cellObj);
-                    const conf = getConfidence(cellObj);
                     if (hasValue(val)) {
-                        rows.push([rowSection, label(colKey), displayValue(val), `${(conf * 100).toFixed(1)}%`]);
+                        rows.push([rowSection, label(colKey), displayValue(val)]);
                     }
                 });
             });
@@ -3857,10 +3856,36 @@ export default function ImageResults() {
         link.download = `image-extraction-${id}.csv`;
         document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }, 150);
         toast.success('CSV downloaded');
     }, [data, fields, tables, id]);
+
+    const handleExcelDownload = useCallback(async () => {
+        try {
+            await downloadExcel(id, data?.job_number || data?.jobNumber);
+            toast.success('Excel downloaded');
+        } catch (err) {
+            toast.error('Failed to download Excel');
+        }
+    }, [id, data]);
+
+    const handleFieldEdit = useCallback(async (fieldPath, newValue) => {
+        try {
+            await editField(id, fieldPath, newValue);
+            toast.success('Field updated');
+            
+            // Reload the extraction data to reflect updates
+            const res = await getImageExtraction(id);
+            const extraction = res.data?.data || res.data;
+            setData(extraction);
+        } catch (error) {
+            console.error('Failed to update field:', error);
+            toast.error('Failed to update field');
+        }
+    }, [id]);
 
     // ========================================================
     // Loading & Error States
@@ -3933,6 +3958,9 @@ export default function ImageResults() {
                         <div className="flex flex-wrap gap-2">
                             <button onClick={() => navigate(-1)} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur transition hover:bg-white/20">
                                 <ArrowLeft size={15} /> Back
+                            </button>
+                            <button onClick={handleExcelDownload} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur transition hover:bg-white/20">
+                                <FileSpreadsheet size={15} /> Excel
                             </button>
                             <button onClick={handleCSVDownload} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur transition hover:bg-white/20">
                                 <Download size={15} /> CSV
@@ -4046,6 +4074,8 @@ export default function ImageResults() {
                                 label={field.label}
                                 value={displayValue(field.value)}
                                 confidence={field.confidence}
+                                fieldKey={data?.extracted_json?.fields ? `fields.${field.key}` : field.key}
+                                onEdit={handleFieldEdit}
                             />
                         ))}
                     </div>
@@ -4086,6 +4116,8 @@ export default function ImageResults() {
                                                 label={label(colKey)}
                                                 value={displayValue(val)}
                                                 confidence={conf || 0.9}
+                                                fieldKey={`tables.${tIndex}.rows.${rIndex}.${colKey}`}
+                                                onEdit={handleFieldEdit}
                                             />
                                         );
                                     })}
