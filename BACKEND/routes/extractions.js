@@ -557,6 +557,54 @@ router.patch('/:id', authMiddleware, async (req, res) => {
 
     if (updateError) throw updateError;
 
+    // Sync to relational items table if editing an item
+    const mapColToDbColumn = (col) => {
+      const c = col.toLowerCase().replace(/_/g, '').replace(/\s/g, '');
+      if (c.includes('description')) return 'item_description';
+      if (c.includes('hscode') || c.includes('cth')) return 'hs_code';
+      if (c.includes('qty') || c.includes('quantity')) return 'quantity';
+      if (c.includes('unitprice') || c.includes('price')) return 'unit_price';
+      if (c.includes('total') || c.includes('amount') || c.includes('value')) return 'total_value';
+      if (c.includes('unit')) return 'unit';
+      return col;
+    };
+
+    if (path[0] === 'items') {
+      const itemId = path[1];
+      const columnName = path[2];
+      const dbColumn = mapColToDbColumn(columnName);
+
+      const { error: itemUpdateError } = await supabase
+        .from(itemsTable)
+        .update({
+          [dbColumn]: newValue,
+        })
+        .eq('id', itemId);
+
+      if (itemUpdateError) console.error('Relational items table update error:', itemUpdateError);
+    } else if (path[0] === 'tables' && path[2] === 'rows') {
+      const tIndex = Number(path[1]);
+      const rIndex = Number(path[3]);
+      const colName = path[4];
+      
+      const tablesList = json.tables || [];
+      const table = tablesList[tIndex];
+      if (table && (table.table_name || '').toLowerCase() === 'items') {
+        const srNo = rIndex + 1;
+        const dbColumn = mapColToDbColumn(colName);
+        
+        const { error: itemUpdateError } = await supabase
+          .from(itemsTable)
+          .update({
+            [dbColumn]: newValue,
+          })
+          .eq(foreignKey, req.params.id)
+          .eq('sr_no', srNo);
+
+        if (itemUpdateError) console.error('Image items table update error:', itemUpdateError);
+      }
+    }
+
     // 5. Audit log
     await supabase
       .from('extraction_history')
@@ -647,37 +695,102 @@ router.get('/:id/excel', authMiddleware, async (req, res) => {
     items = fetchedItems || [];
 
     const wb = XLSX.utils.book_new();
+    const json = ext.extracted_json || {};
 
-    const json = ext.extracted_json;
+    if (itemsTable === 'image_extraction_items') {
+      // ═══════════════════════════════════════════
+      // Image Extraction: Parse Dynamic Fields & Tables
+      // ═══════════════════════════════════════════
+      const fieldsSource = json.fields || json;
+      const generalRows = [];
+      for (const [key, val] of Object.entries(fieldsSource)) {
+        if (['raw_extracted_text', 'tables', 'overall_confidence', 'items'].includes(key)) continue;
+        if (val && typeof val === 'object' && Array.isArray(val)) continue;
+        
+        const value = val && typeof val === 'object' && 'value' in val ? val.value : val;
+        const confidence = val && typeof val === 'object' && 'confidence' in val ? val.confidence : '';
+        
+        if (value !== null && value !== undefined && value !== '') {
+          generalRows.push({
+            Field: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            Value: value,
+          });
+        }
+      }
 
-    const sections = [
-      'job',
-      'importer_exporter',
-      'foreign_party',
-      'consignee',
-      'shipment',
-      'invoice',
-      'packing',
-    ];
-
-    for (const sec of sections) {
-      if (json[sec]) {
-        const rows = Object.entries(json[sec]).map(
-          ([k, v]) => ({
-            Field: k,
-            Value: v?.value || v,
-            Confidence: v?.confidence || '',
-          })
-        );
-
+      if (generalRows.length > 0) {
         XLSX.utils.book_append_sheet(
           wb,
-          XLSX.utils.json_to_sheet(rows),
-          sec
+          XLSX.utils.json_to_sheet(generalRows),
+          'general'
         );
+      }
+
+      // Add other dynamic tables
+      const parsedTables = Array.isArray(json.tables) ? json.tables : [];
+      const addedSheetNames = new Set(['general', 'items']);
+      for (const table of parsedTables) {
+        let name = (table.table_name || 'Table').toLowerCase();
+        if (name === 'items' && items?.length > 0) continue; // Prefer canonical database items
+
+        let sheetName = table.table_name || 'Table';
+        if (sheetName.length > 30) sheetName = sheetName.substring(0, 30);
+        let uniqName = sheetName;
+        let counter = 1;
+        while (addedSheetNames.has(uniqName.toLowerCase())) {
+          uniqName = `${sheetName.substring(0, 27)}_${counter}`;
+          counter++;
+        }
+        addedSheetNames.add(uniqName.toLowerCase());
+
+        if (table.rows?.length) {
+          const rows = table.rows.map(row => {
+            const r = {};
+            for (const [k, v] of Object.entries(row)) {
+              r[k] = v && typeof v === 'object' && 'value' in v ? v.value : v;
+            }
+            return r;
+          });
+          XLSX.utils.book_append_sheet(
+            wb,
+            XLSX.utils.json_to_sheet(rows),
+            uniqName
+          );
+        }
+      }
+    } else {
+      // ═══════════════════════════════════════════
+      // Standard / Scanned PDF Extraction
+      // ═══════════════════════════════════════════
+      const sections = [
+        'job',
+        'importer_exporter',
+        'foreign_party',
+        'consignee',
+        'shipment',
+        'invoice',
+        'packing',
+      ];
+
+      for (const sec of sections) {
+        if (json[sec]) {
+          const rows = Object.entries(json[sec]).map(
+            ([k, v]) => ({
+              Field: k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+              Value: v?.value || v,
+            })
+          );
+
+          XLSX.utils.book_append_sheet(
+            wb,
+            XLSX.utils.json_to_sheet(rows),
+            sec
+          );
+        }
       }
     }
 
+    // Append items sheet from DB if present
     if (items?.length) {
       const itemRows = items.map((i) => ({
         Sr: i.sr_no,
@@ -696,6 +809,15 @@ router.get('/:id/excel', authMiddleware, async (req, res) => {
       );
     }
 
+    // Fallback if workbook is completely empty to prevent SheetJS crash
+    if (wb.SheetNames.length === 0) {
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.json_to_sheet([{ Message: 'No data extracted' }]),
+        'empty'
+      );
+    }
+
     const buffer = XLSX.write(wb, {
       type: 'buffer',
       bookType: 'xlsx',
@@ -708,7 +830,7 @@ router.get('/:id/excel', authMiddleware, async (req, res) => {
 
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="${ext.job_number}.xlsx"`
+      `attachment; filename="${ext.job_number || 'extraction'}.xlsx"`
     );
 
     res.send(buffer);
