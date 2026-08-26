@@ -10,6 +10,8 @@ import {
   ShieldCheck,
   ArrowRight,
   CheckCircle2,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 export default function Login() {
@@ -24,15 +26,29 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Password visibility states
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const navigate = useNavigate();
   const { login } = useAuth();
 
   // Detect recovery redirect on load
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('type') === 'recovery') {
+    // Check search query parameters
+    const searchParams = new URLSearchParams(window.location.search);
+    let type = searchParams.get('type');
+
+    // Check hash parameters (Supabase magic links usually put tokens in the hash fragment)
+    if (!type && window.location.hash) {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      type = hashParams.get('type');
+    }
+
+    if (type === 'recovery') {
       setView('forgot-password');
-      // Clean up URL so reloads don't get stuck in recovery mode
+      // Clean up URL hash/search parameters so reloads don't get stuck in recovery mode
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
@@ -133,449 +149,204 @@ export default function Login() {
     setSuccessMsg('');
     setNewPassword('');
     setConfirmPassword('');
+    setShowPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6">
+    <div className="h-screen w-screen bg-slate-50 flex flex-col items-center justify-between p-4 overflow-hidden relative">
 
-      {/* =========================================================
-          BACKGROUND DECORATION
-      ========================================================= */}
-
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-
-        <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-blue-500/10 blur-3xl" />
-
-        <div className="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-teal-500/10 blur-3xl" />
-
-        <div className="absolute top-1/3 right-1/4 h-64 w-64 rounded-full bg-blue-400/5 blur-3xl" />
-
+      {/* BACKGROUND DECORATION */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-blue-500/10 blur-3xl animate-pulse" style={{ animationDuration: '8s' }} />
+        <div className="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-teal-500/10 blur-3xl animate-pulse" style={{ animationDuration: '10s' }} />
       </div>
 
+      <div className="my-auto z-10 w-full max-w-5xl">
+        <div className="grid overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-200 lg:grid-cols-2 max-h-[90vh]">
 
-      {/* =========================================================
-          MAIN CONTAINER
-      ========================================================= */}
-
-      <div className="relative z-10 w-full max-w-5xl">
-
-        <div className="grid overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-200 lg:grid-cols-2">
-
-
-          {/* =====================================================
-              LEFT — BRAND / PRODUCT INFORMATION
-          ===================================================== */}
-
-          <div className="relative hidden overflow-hidden bg-gradient-to-br from-blue-950 via-slate-900 to-blue-900 p-10 text-white lg:flex lg:flex-col">
-
+          {/* LEFT — BRAND / PRODUCT INFORMATION */}
+          <div className="relative hidden overflow-hidden bg-gradient-to-br from-blue-950 via-slate-900 to-blue-900 p-8 lg:p-10 text-white lg:flex lg:flex-col justify-between">
             {/* Decorative circles */}
+            <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-blue-500/20 blur-2xl" />
+            <div className="absolute -bottom-32 -left-32 h-72 w-72 rounded-full bg-teal-500/10 blur-3xl" />
 
-            <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-blue-500/20 blur-2xl" />
-
-            <div className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-teal-500/10 blur-3xl" />
-
-
-            <div className="relative z-10 flex h-full flex-col">
-
+            <div className="relative z-10 flex h-full flex-col justify-between space-y-4">
               {/* Logo */}
-
-              <div className="flex items-center gap-3">
-
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-400 shadow-lg">
-
-                  <FileText
-                    size={22}
-                    className="text-slate-950"
-                  />
-
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-400 shadow-md">
+                  <FileText size={20} className="text-slate-950" />
                 </div>
-
                 <div>
-
-                  <div className="text-lg font-black tracking-tight">
-                    QuickCL
-                  </div>
-
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  <div className="text-base font-black tracking-tight leading-none mt-0.5">QuickCL</div>
+                  <div className="text-[9px] font-semibold uppercase tracking-[0.15em] text-slate-400 mt-0.5">
                     MAPS TECH & AI
                   </div>
-
                 </div>
-
               </div>
-
 
               {/* Main content */}
-
-              <div className="my-auto py-12">
-
-                <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-bold text-teal-300">
-
+              <div className="my-auto py-4">
+                <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1 text-[10px] font-bold text-teal-300">
                   Fast Customs Checklist Helper
-
                 </div>
-
-
-                <h1 className="max-w-lg text-4xl font-black leading-tight tracking-tight">
-
+                <h1 className="text-2xl lg:text-3xl font-bold leading-tight tracking-tight">
                   Make customs filing faster
-
-                  <span className="text-teal-300">
-                    {' '}and error-free.
-                  </span>
-
+                  <span className="text-teal-300"> and error-free.</span>
                 </h1>
-
-
-                <p className="mt-5 max-w-md text-sm leading-6 text-slate-300">
-
-                  Stop wasting hours typing declarations manually. Our helper tool reads your Commercial Invoices, Packing Lists, and AWB copies for you, preparing your checklists in seconds.
-
+                <p className="mt-3 text-sm leading-relaxed text-slate-300">
+                  Fast, automated customs checklist preparation from Commercial Invoices, Packing Lists, and AWB copies.
                 </p>
 
-
                 {/* Feature list */}
-
-                <div className="mt-8 space-y-5">
-
-                  <div className="flex items-start gap-3">
-
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-400/10 mt-0.5">
-
-                      <CheckCircle2
-                        size={15}
-                        className="text-teal-300"
-                      />
-
-                    </div>
-
-                    <div>
-                      <span className="block text-sm font-bold text-teal-300">
-                        140+ Checklist fields captured instantly
-                      </span>
-                      <span className="mt-1 block text-xs text-slate-300 leading-relaxed">
-                        Automatically processes party details, quantities, item descriptions, values, and HS codes without manual typing
-                      </span>
-                    </div>
-
+                <div className="mt-6 space-y-3">
+                  <div className="flex items-center gap-2.5 text-xs lg:text-sm">
+                    <CheckCircle2 size={15} className="text-teal-300 shrink-0" />
+                    <span className="font-bold text-teal-300">140+ fields captured instantly</span>
                   </div>
-
-
-                  <div className="flex items-start gap-3">
-
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-400/10 mt-0.5">
-
-                      <CheckCircle2
-                        size={15}
-                        className="text-teal-300"
-                      />
-
-                    </div>
-
-                    <div>
-                      <span className="block text-sm font-bold text-teal-300">
-                        14,000+ Verified HS codes
-                      </span>
-                      <span className="mt-1 block text-xs text-slate-300 leading-relaxed">
-                        Direct matching from the official CBIC database, guaranteeing accurate classification with zero guesswork
-                      </span>
-                    </div>
-
+                  <div className="flex items-center gap-2.5 text-xs lg:text-sm">
+                    <CheckCircle2 size={15} className="text-teal-300 shrink-0" />
+                    <span className="font-bold text-teal-300">14,000+ verified ITC-HS codes</span>
                   </div>
-
-
-                  <div className="flex items-start gap-3">
-
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-400/10 mt-0.5">
-
-                      <CheckCircle2
-                        size={15}
-                        className="text-teal-300"
-                      />
-
-                    </div>
-
-                    <div>
-                      <span className="block text-sm font-bold text-teal-300">
-                        Works with your existing CHA system
-                      </span>
-                      <span className="mt-1 block text-xs text-slate-300 leading-relaxed">
-                        Zero integration setup. Simply copy-paste data directly into whatever filing software you use
-                      </span>
-                    </div>
-
+                  <div className="flex items-center gap-2.5 text-xs lg:text-sm">
+                    <CheckCircle2 size={15} className="text-teal-300 shrink-0" />
+                    <span className="font-bold text-teal-300">Works with existing CHA software</span>
                   </div>
-
-
-                  <div className="flex items-start gap-3">
-
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-400/10 mt-0.5">
-
-                      <CheckCircle2
-                        size={15}
-                        className="text-teal-300"
-                      />
-
-                    </div>
-
-                    <div>
-                      <span className="block text-sm font-bold text-teal-300">
-                        Immediate document deletion
-                      </span>
-                      <span className="mt-1 block text-xs text-slate-300 leading-relaxed">
-                        Your invoices and files are wiped right after extraction. We prioritize privacy and are not a data business
-                      </span>
-                    </div>
-
+                  <div className="flex items-center gap-2.5 text-xs lg:text-sm">
+                    <CheckCircle2 size={15} className="text-teal-300 shrink-0" />
+                    <span className="font-bold text-teal-300">Immediate document deletion</span>
                   </div>
-
                 </div>
-
               </div>
-
 
               {/* Bottom */}
-
-              <div className="flex items-center justify-between border-t border-slate-700/60 pt-5">
-
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-
-                  <ShieldCheck size={15} />
-
-                  Secure document helper
-
+              <div className="flex items-center justify-between border-t border-slate-700/60 pt-4">
+                <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                  <ShieldCheck size={14} /> Secure helper
                 </div>
-
-                <div className="text-xs text-slate-500">
-                  MAPS TECH & AI
-                </div>
-
+                <div className="text-xs text-slate-500">MAPS TECH & AI</div>
               </div>
-
             </div>
-
           </div>
 
-
-          {/* =====================================================
-              RIGHT — LOGIN FORM
-          ===================================================== */}
-
-          <div className="flex flex-col justify-center p-6 sm:p-10 lg:p-12">
-
+          {/* RIGHT — LOGIN FORM */}
+          <div className="flex flex-col justify-center p-6 sm:p-8 lg:p-10">
             {/* Mobile Logo */}
-
-            <div className="mb-8 flex items-center gap-3 lg:hidden">
-
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-900 shadow-md">
-
-                <FileText
-                  size={22}
-                  className="text-white"
-                />
-
+            <div className="mb-4 flex items-center gap-2 lg:hidden">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-900 shadow-md">
+                <FileText size={16} className="text-white" />
               </div>
-
               <div>
-
-                <div className="text-lg font-black tracking-tight text-slate-900">
-                  QuickCL
+                <div className="text-sm font-black tracking-tight text-slate-900 leading-none">QuickCL</div>
+                <div className="text-[8px] font-semibold uppercase tracking-[0.15em] text-slate-400 mt-0.5">
+                  MAPS TECH & AI
                 </div>
-
-                <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                  MAPS UNITED CONSULTANCY
-                </div>
-
               </div>
-
             </div>
-
 
             {/* Heading */}
-
-            <div className="mb-7">
-              {view === 'login' ? (
-                <>
-                  <h2 className="text-3xl font-black tracking-tight text-slate-900">
-                    Login
-                  </h2>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Log in to your workspace to generate checklists and manage your customs entry profiles.
-                  </p>
-                </>
-              ) : view === 'forgot' ? (
-                <>
-                  <h2 className="text-3xl font-black tracking-tight text-slate-900">
-                    Forgot Password
-                  </h2>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Enter your email to receive an 8-digit OTP code to verify your identity.
-                  </p>
-                </>
-              ) : view === 'forgot-otp' ? (
-                <>
-                  <h2 className="text-3xl font-black tracking-tight text-slate-900">
-                    Verify OTP Code
-                  </h2>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Enter the 8-digit OTP code sent to your email to continue resetting your password.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <h2 className="text-3xl font-black tracking-tight text-slate-900">
-                    Create New Password
-                  </h2>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Set a secure new password for your QuickCL account.
-                  </p>
-                </>
-              )}
+            <div className="mb-4">
+              <h2 className="text-xl font-bold tracking-tight text-slate-900 leading-tight">
+                {view === 'login' ? 'Login' : view === 'forgot' ? 'Forgot Password' : 'Create New Password'}
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {view === 'login' ? 'Log in to your workspace' : view === 'forgot' ? 'Enter email for password reset' : 'Set a secure new password'}
+              </p>
             </div>
 
-
             {/* Error */}
-
             {error && (
-
-              <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
-
-                <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-red-500" />
-
-                <div>
-
-                  <p className="text-xs font-bold text-red-800">
-                    Error
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-red-600">
-                    {error}
-                  </p>
-
-                </div>
-
+              <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3">
+                <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                <p className="text-xs leading-tight text-red-600 font-medium">{error}</p>
               </div>
-
             )}
 
             {/* Success message */}
             {successMsg && (
-              <div className="mb-5 flex items-start gap-3 rounded-xl border border-teal-200 bg-teal-50 p-4">
-                <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-teal-500" />
-                <div>
-                  <p className="text-xs font-bold text-teal-800">Verification Sent</p>
-                  <p className="mt-1 text-xs leading-5 text-teal-600">{successMsg}</p>
-                </div>
+              <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-teal-200 bg-teal-50 p-3">
+                <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" />
+                <p className="text-xs leading-tight text-teal-600 font-medium">{successMsg}</p>
               </div>
             )}
 
-
             {/* Form */}
-
             {view === 'login' && (
-              <form
-                onSubmit={handleSubmit}
-                className="space-y-5"
-              >
-
+              <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Email */}
-
                 <div>
-
-                  <label className="mb-2 block text-xs font-bold text-slate-700">
-
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
                     Email Address
-
                   </label>
-
                   <input
                     type="email"
                     required
                     placeholder="you@firm.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-800 focus:bg-white focus:ring-4 focus:ring-blue-900/5"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-800 focus:bg-white focus:ring-4 focus:ring-blue-900/5"
                   />
-
                 </div>
 
-
                 {/* Password */}
-
                 <div>
-
-                  <div className="mb-2 flex items-center justify-between">
-
-                    <label className="block text-xs font-bold text-slate-700">
-
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
                       Password
-
                     </label>
-
                     <button
                       type="button"
                       onClick={() => setView('forgot')}
-                      className="text-xs font-bold text-blue-800 hover:text-blue-950 hover:underline focus:outline-none"
+                      className="text-xs font-bold text-blue-800 hover:underline focus:outline-none"
                     >
-                      Forgot Password?
+                      Forgot?
                     </button>
-
                   </div>
-
-                  <input
-                    type="password"
-                    required
-                    placeholder="Your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-800 focus:bg-white focus:ring-4 focus:ring-blue-900/5"
-                  />
-
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="Your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-4 pr-11 py-2.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-800 focus:bg-white focus:ring-4 focus:ring-blue-900/5"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
 
-
                 {/* Login button */}
-
                 <button
                   type="submit"
                   disabled={loading}
-                  className="group flex w-full items-center justify-center gap-2 rounded-xl bg-blue-950 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-950/10 transition-all hover:bg-blue-900 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-70"
+                  className="group flex w-full items-center justify-center gap-2 rounded-xl bg-blue-950 px-5 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-
                   {loading ? (
                     <>
-                      <Loader2
-                        size={17}
-                        className="animate-spin"
-                      />
-
+                      <Loader2 size={15} className="animate-spin" />
                       Logging in...
-
                     </>
                   ) : (
                     <>
-                      Login to Workspace
-
-                      <ArrowRight
-                        size={16}
-                        className="transition-transform group-hover:translate-x-1"
-                      />
-
+                      Login
+                      <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
                     </>
                   )}
-
                 </button>
-
               </form>
             )}
 
             {view === 'forgot' && (
-              <form
-                onSubmit={handleSendForgotPasswordLink}
-                className="space-y-5"
-              >
+              <form onSubmit={handleSendForgotPasswordLink} className="space-y-4">
                 <div>
-                  <label className="mb-2 block text-xs font-bold text-slate-700">
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
                     Email Address
                   </label>
                   <input
@@ -584,29 +355,29 @@ export default function Login() {
                     placeholder="you@firm.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-800 focus:bg-white focus:ring-4 focus:ring-blue-900/5"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-800"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="group flex w-full items-center justify-center gap-2 rounded-xl bg-blue-950 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-950/10 transition-all hover:bg-blue-900 hover:shadow-xl"
+                  className="group flex w-full items-center justify-center gap-2 rounded-xl bg-blue-950 px-5 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-blue-900"
                 >
                   {loading ? (
                     <>
-                      <Loader2 size={17} className="animate-spin" />
-                      Sending Link...
+                      <Loader2 size={15} className="animate-spin" />
+                      Sending...
                     </>
                   ) : (
                     <>
                       Send Reset Link
-                      <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                      <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
                     </>
                   )}
                 </button>
 
-                <div className="text-center pt-2">
+                <div className="text-center pt-1">
                   <button
                     type="button"
                     onClick={resetToLogin}
@@ -619,102 +390,93 @@ export default function Login() {
             )}
 
             {view === 'forgot-password' && (
-              <form
-                onSubmit={handleResetPassword}
-                className="space-y-5"
-              >
+              <form onSubmit={handleResetPassword} className="space-y-4">
                 <div>
-                  <label className="mb-2 block text-xs font-bold text-slate-700">
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
                     New Password
                   </label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="Min 6 characters"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-800 focus:bg-white focus:ring-4 focus:ring-blue-900/5"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      required
+                      placeholder="Min 6 characters"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-4 pr-11 py-2.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-xs font-bold text-slate-700">
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
                     Confirm New Password
                   </label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="Type password again"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-800 focus:bg-white focus:ring-4 focus:ring-blue-900/5"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      required
+                      placeholder="Type password again"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-4 pr-11 py-2.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="group flex w-full items-center justify-center gap-2 rounded-xl bg-blue-950 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-950/10 transition-all hover:bg-blue-900 hover:shadow-xl"
+                  className="group flex w-full items-center justify-center gap-2 rounded-xl bg-blue-950 px-5 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-blue-900"
                 >
                   {loading ? 'Saving...' : 'Save Password & Continue'}
                 </button>
               </form>
             )}
 
-
-            {/* Register */}
-
+            {/* Register Switch */}
             {view === 'login' && (
-              <div className="mt-7 border-t border-slate-100 pt-6 text-center">
-
+              <div className="mt-5 border-t border-slate-100 pt-4 text-center">
                 <p className="text-xs text-slate-400">
-
                   New firm?
-
-                  <Link
-                    to="/register"
-                    className="ml-1 font-bold text-blue-800 hover:text-blue-950 hover:underline"
-                  >
+                  <Link to="/register" className="ml-1 font-bold text-blue-800 hover:underline">
                     Register here
                   </Link>
-
                 </p>
-
               </div>
             )}
 
-
             {/* Security note */}
-
-            <div className="mt-6 flex items-center justify-center gap-2 text-[10px] text-slate-400">
-
-              <ShieldCheck size={13} />
-
+            <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-slate-400">
+              <ShieldCheck size={14} />
               Gandhidham CHA Secure Login
-
             </div>
-
           </div>
 
         </div>
 
-
         {/* Footer */}
-
-        <p className="mt-5 text-center text-[10px] text-slate-400">
-
+        <p className="text-center text-xs text-slate-400 mt-5 pb-2 z-10">
           MapsUnited Consultancy Pvt. Ltd. · Gandhidham
-
         </p>
-
       </div>
 
     </div>
   );
 }
-
-
-
 
 
 
