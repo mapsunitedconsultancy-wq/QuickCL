@@ -40,7 +40,7 @@ const apiLimiter = rateLimit({
 app.use(helmet()); // Secure HTTP headers
 // ─── CORS CONFIGURATION ───
 const envOrigins = process.env.CLIENT_URL
-  ? process.env.CLIENT_URL.split(',').map((url) => url.trim())
+  ? process.env.CLIENT_URL.split(',').map((url) => url.trim().replace(/\/$/, ''))
   : [];
 
 const allowedOrigins = [
@@ -49,17 +49,13 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
   ...envOrigins,
-];
+].filter(Boolean);
 
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, server-to-server) or in whitelist
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    return callback(new Error(`CORS blocked for origin: ${origin}`));
-  },
-  credentials: true
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
