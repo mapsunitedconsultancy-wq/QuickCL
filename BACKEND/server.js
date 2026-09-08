@@ -38,8 +38,27 @@ const apiLimiter = rateLimit({
 
 // ─── MIDDLEWARE ───
 app.use(helmet()); // Secure HTTP headers
+// ─── CORS CONFIGURATION ───
+const envOrigins = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(',').map((url) => url.trim())
+  : [];
+
+const allowedOrigins = [
+  'https://app.quickcl.mapsai.in',
+  'https://quickcl.mapsai.in',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  ...envOrigins,
+];
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, server-to-server) or in whitelist
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));
