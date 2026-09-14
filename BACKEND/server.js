@@ -17,12 +17,24 @@ const imageExtractRoutes = require("./routes/imageExtract");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust reverse proxy (Render, Vercel, Cloudflare) for accurate client IP rate limiting
+app.set('trust proxy', 1);
+
 // ─── RATE LIMITERS ───
 // Strict limiter for authentication & registration endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 30, // Limit each IP to 30 requests per 15 minutes
   message: { error: 'Too many requests from this IP. Please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Extraction limiter for AI document processing (protects Gemini API quota & memory)
+const extractionLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 25, // Limit each IP to 25 document extractions per 5 minutes
+  message: { error: 'Too many extraction requests. Please wait a few minutes before submitting more documents.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -65,6 +77,9 @@ app.use('/api/', apiLimiter);
 app.use('/api/auth/check-email', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/login', authLimiter);
+app.use('/api/extract', extractionLimiter);
+app.use('/api/scanned-extract', extractionLimiter);
+app.use('/api/image-extract', extractionLimiter);
 
 // ─── ROUTES ───
 app.use('/api/auth', require('./routes/auth.routes.js'));

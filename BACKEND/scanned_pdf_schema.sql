@@ -25,8 +25,13 @@ CREATE TABLE IF NOT EXISTS public.scanned_pdf_extractions (
 -- Enable RLS
 ALTER TABLE public.scanned_pdf_extractions ENABLE ROW LEVEL SECURITY;
 
--- Create Policy
-CREATE POLICY "scanned_extractions_own" ON public.scanned_pdf_extractions FOR ALL USING (true);
+DROP POLICY IF EXISTS "scanned_extractions_own" ON public.scanned_pdf_extractions;
+
+-- Extractions belong to authenticated user
+CREATE POLICY "scanned_extractions_own" ON public.scanned_pdf_extractions 
+  FOR ALL TO authenticated 
+  USING (auth.uid() = user_id) 
+  WITH CHECK (auth.uid() = user_id);
 
 -- ═══ TABLE 2: scanned_pdf_extraction_items (line items per scanned job) ═══
 CREATE TABLE IF NOT EXISTS public.scanned_pdf_extraction_items (
@@ -58,5 +63,21 @@ CREATE TABLE IF NOT EXISTS public.scanned_pdf_extraction_items (
 -- Enable RLS
 ALTER TABLE public.scanned_pdf_extraction_items ENABLE ROW LEVEL SECURITY;
 
--- Create Policy
-CREATE POLICY "scanned_items_own" ON public.scanned_pdf_extraction_items FOR ALL USING (true);
+DROP POLICY IF EXISTS "scanned_items_own" ON public.scanned_pdf_extraction_items;
+
+CREATE POLICY "scanned_items_own" ON public.scanned_pdf_extraction_items 
+  FOR ALL TO authenticated 
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.scanned_pdf_extractions 
+      WHERE public.scanned_pdf_extractions.id = public.scanned_pdf_extraction_items.scanned_pdf_extraction_id 
+        AND public.scanned_pdf_extractions.user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.scanned_pdf_extractions 
+      WHERE public.scanned_pdf_extractions.id = public.scanned_pdf_extraction_items.scanned_pdf_extraction_id 
+        AND public.scanned_pdf_extractions.user_id = auth.uid()
+    )
+  );

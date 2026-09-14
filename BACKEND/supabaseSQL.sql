@@ -117,18 +117,60 @@ CREATE TABLE extraction_history (
   timestamp TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ═══ ROW LEVEL SECURITY ═══
+-- ═══ ROW LEVEL SECURITY (SECURE PRODUCTION POLICIES) ═══
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE extractions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE extraction_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE extraction_history ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "users_own" ON users FOR ALL USING (true);
-CREATE POLICY "clients_own" ON clients FOR ALL USING (true);
-CREATE POLICY "extractions_own" ON extractions FOR ALL USING (true);
-CREATE POLICY "items_own" ON extraction_items FOR ALL USING (true);
-CREATE POLICY "history_own" ON extraction_history FOR ALL USING (true);
+DROP POLICY IF EXISTS "users_own" ON users;
+DROP POLICY IF EXISTS "clients_own" ON clients;
+DROP POLICY IF EXISTS "extractions_own" ON extractions;
+DROP POLICY IF EXISTS "items_own" ON extraction_items;
+DROP POLICY IF EXISTS "history_own" ON extraction_history;
+
+-- Users can only view or modify their own record
+CREATE POLICY "users_own" ON users 
+  FOR ALL TO authenticated 
+  USING (auth.uid() = id) 
+  WITH CHECK (auth.uid() = id);
+
+-- Clients belong to the user
+CREATE POLICY "clients_own" ON clients 
+  FOR ALL TO authenticated 
+  USING (auth.uid() = user_id) 
+  WITH CHECK (auth.uid() = user_id);
+
+-- Extractions belong to the user
+CREATE POLICY "extractions_own" ON extractions 
+  FOR ALL TO authenticated 
+  USING (auth.uid() = user_id) 
+  WITH CHECK (auth.uid() = user_id);
+
+-- Extraction items belong to user's extraction
+CREATE POLICY "items_own" ON extraction_items 
+  FOR ALL TO authenticated 
+  USING (
+    EXISTS (
+      SELECT 1 FROM extractions 
+      WHERE extractions.id = extraction_items.extraction_id 
+        AND extractions.user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM extractions 
+      WHERE extractions.id = extraction_items.extraction_id 
+        AND extractions.user_id = auth.uid()
+    )
+  );
+
+-- Audit history belongs to user
+CREATE POLICY "history_own" ON extraction_history 
+  FOR ALL TO authenticated 
+  USING (auth.uid() = user_id) 
+  WITH CHECK (auth.uid() = user_id);
 
 
 

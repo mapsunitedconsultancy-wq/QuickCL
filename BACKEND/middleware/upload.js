@@ -5,12 +5,17 @@ const path = require('path');
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
-  const allowed = ['.pdf'];
+  const allowedExtensions = ['.pdf'];
+  const allowedMimeTypes = ['application/pdf', 'application/x-pdf'];
+
   const ext = path.extname(file.originalname).toLowerCase();
-  if (allowed.includes(ext)) {
+  const isValidExt = allowedExtensions.includes(ext);
+  const isValidMime = allowedMimeTypes.includes(file.mimetype);
+
+  if (isValidExt && isValidMime) {
     cb(null, true);
   } else {
-    cb(new Error('Only PDF, JPG, PNG, HEIC, TIFF files are allowed'), false);
+    cb(new Error('Invalid file type. Only standard PDF documents are allowed.'), false);
   }
 };
 
