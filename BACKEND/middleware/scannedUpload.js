@@ -4,12 +4,17 @@ const path = require('path');
 const storage = multer.memoryStorage();
 
 const scannedFileFilter = (req, file, cb) => {
-  const allowed = ['.pdf'];
+  const allowedExtensions = ['.pdf'];
+  const allowedMimeTypes = ['application/pdf', 'application/x-pdf'];
+
   const ext = path.extname(file.originalname).toLowerCase();
-  if (allowed.includes(ext)) {
+  const isValidExt = allowedExtensions.includes(ext);
+  const isValidMime = allowedMimeTypes.includes(file.mimetype);
+
+  if (isValidExt && isValidMime) {
     cb(null, true);
   } else {
-    cb(new Error('Only PDF files are allowed for scanned PDF extraction'), false);
+    cb(new Error('Only valid PDF files are allowed for scanned PDF extraction'), false);
   }
 };
 
