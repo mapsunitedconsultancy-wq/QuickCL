@@ -8,6 +8,8 @@ import {
   FileText,
   BarChart3,
   ShieldCheck,
+  CheckCircle2,
+  Crown,
 } from 'lucide-react';
 
 export default function Settings() {
@@ -42,327 +44,187 @@ export default function Settings() {
   ];
 
   return (
-    <div className="max-w-5xl mx-auto pb-10">
-
-      {/* =====================================================
-          HEADER
-      ====================================================== */}
-      <div className="flex items-center justify-between mb-6">
-
-        <div className="flex items-center gap-3">
-
-          <div
-            className="w-10 h-10 rounded-xl bg-blue-100
-              text-blue-800 flex items-center justify-center"
-          >
-            <SettingsIcon size={20} />
+    <div className="space-y-6 pb-12 max-w-5xl mx-auto">
+      {/* ================= HERO (Apple HIG) ================= */}
+      <div className="relative overflow-hidden rounded-[20px] bg-white p-7 sm:p-8 shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-[rgba(60,60,67,0.12)]">
+        <div className="relative z-10 max-w-3xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#007aff]/20 bg-[#007aff]/10 px-3 py-1 text-xs font-semibold text-[#1c1c1e]">
+            <SettingsIcon size={14} className="text-[#007aff]" strokeWidth={2.2} />
+            Account & System Configuration
           </div>
 
-          <div>
-            <h1 className="text-2xl font-black text-gray-900">
-              Settings
-            </h1>
+          <h1 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight text-[#1c1c1e]">
+            Settings
+          </h1>
 
-            <p className="text-sm text-gray-400 mt-0.5">
-              Manage your firm information and account usage
-            </p>
-          </div>
-
+          <p className="mt-2 text-sm sm:text-base text-[#48484a] leading-relaxed">
+            Manage your registered firm profile, active subscription plan, and customs document extraction quota.
+          </p>
         </div>
-
-        <div
-          className="hidden sm:flex items-center gap-2
-            text-[10px] font-bold uppercase tracking-wider
-            text-gray-400 bg-white border border-gray-200
-            rounded-lg px-3 py-2"
-        >
-          <ShieldCheck size={13} />
-          Account
-        </div>
-
       </div>
 
-
-      {/* =====================================================
-          FIRM INFORMATION
-      ====================================================== */}
-      <div className="card-base overflow-hidden mb-4">
-
-        <div
-          className="px-5 py-4 border-b border-gray-200
-            flex items-center gap-3"
-        >
-
-          <div
-            className="w-8 h-8 rounded-lg bg-blue-100
-              text-blue-800 flex items-center justify-center"
-          >
-            <Building2 size={16} />
+      {/* ================= FIRM INFORMATION ================= */}
+      <div className="overflow-hidden rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+        <div className="border-b border-[rgba(60,60,67,0.1)] bg-white px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-[10px] bg-white border border-[rgba(60,60,67,0.18)] text-[#1c1c1e] flex items-center justify-center shadow-2xs">
+              <Building2 size={18} strokeWidth={2.2} />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-[#1c1c1e] tracking-tight">
+                Firm Information
+              </h2>
+              <p className="text-xs text-[#48484a]">
+                Your registered Customs Brokerage / CHA account details
+              </p>
+            </div>
           </div>
 
-          <div>
-            <h2 className="text-sm font-bold text-gray-800">
-              Firm Information
-            </h2>
-
-            <p className="text-[11px] text-gray-400">
-              Your registered CHA account details
-            </p>
-          </div>
-
+          <span className="text-[10px] font-bold uppercase tracking-[0.06em] px-2.5 py-1 rounded-full bg-[rgba(60,60,67,0.08)] text-[#48484a]">
+            Verified
+          </span>
         </div>
 
-
-        <div className="divide-y divide-gray-100">
-
+        <div className="divide-y divide-[rgba(60,60,67,0.06)]">
           {info.map(({ icon: Icon, label, value }) => (
             <div
               key={label}
-              className="flex items-center gap-4
-                px-5 py-4 hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-4 px-6 py-4 transition-colors hover:bg-[#f9f9fb]"
             >
-
-              <div
-                className="w-9 h-9 rounded-lg bg-gray-100
-                  text-gray-500 flex items-center justify-center
-                  shrink-0"
-              >
-                <Icon size={16} />
+              <div className="w-9 h-9 rounded-[10px] bg-[#f2f2f7] text-[#48484a] flex items-center justify-center shrink-0">
+                <Icon size={16} strokeWidth={2.2} />
               </div>
 
-              <div className="w-28 sm:w-36 shrink-0">
-                <p
-                  className="text-[10px] font-bold
-                    uppercase tracking-wider text-gray-400"
-                >
+              <div className="w-32 sm:w-44 shrink-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#636366]">
                   {label}
                 </p>
               </div>
 
-              <p className="text-sm font-bold text-gray-800 truncate">
+              <p className="text-sm font-semibold text-[#1c1c1e] truncate flex-1">
                 {value || '--'}
               </p>
-
             </div>
           ))}
-
         </div>
-
       </div>
 
-
-      {/* =====================================================
-          PLAN + USAGE
-      ====================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-
-        {/* Plan */}
-        <div className="card-base p-5">
-
+      {/* ================= PLAN + USAGE ================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Plan Card */}
+        <div className="rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
           <div className="flex items-center justify-between mb-5">
-
             <div className="flex items-center gap-3">
-
-              <div
-                className="w-9 h-9 rounded-lg bg-purple-100
-                  text-purple-700 flex items-center justify-center"
-              >
-                <CreditCard size={17} />
+              <div className="w-10 h-10 rounded-[12px] bg-white border border-[rgba(60,60,67,0.18)] text-[#1c1c1e] flex items-center justify-center shadow-2xs">
+                <Crown size={18} strokeWidth={2.2} />
               </div>
-
               <div>
-                <h2 className="text-sm font-bold text-gray-800">
-                  Current Plan
+                <h2 className="text-base font-bold text-[#1c1c1e] tracking-tight">
+                  Subscription Tier
                 </h2>
-
-                <p className="text-[11px] text-gray-400">
-                  Your active extraction plan
+                <p className="text-xs text-[#48484a]">
+                  Your active extraction package
                 </p>
               </div>
-
             </div>
 
-            <span
-              className="text-[10px] font-black px-2.5 py-1
-                rounded-full bg-purple-100 text-purple-800"
-            >
+            <span className="text-xs font-bold px-3 py-1 rounded-full bg-[#af52de]/10 text-[#af52de] border border-[#af52de]/20">
               {user?.plan?.toUpperCase() || 'DEMO'}
             </span>
-
           </div>
 
-
-          <div
-            className="rounded-xl bg-gray-50
-              border border-gray-100 p-4"
-          >
-
+          <div className="rounded-[16px] bg-[#f9f9fb] border border-[rgba(60,60,67,0.08)] p-4">
             <div className="flex items-center gap-3">
-
-              <div
-                className="w-10 h-10 rounded-lg
-                  bg-white border border-gray-200
-                  flex items-center justify-center"
-              >
-                <FileText
-                  size={18}
-                  className="text-blue-700"
-                />
+              <div className="w-10 h-10 rounded-[12px] bg-white border border-[rgba(60,60,67,0.1)] flex items-center justify-center shadow-2xs">
+                <FileText size={18} className="text-[#007aff]" />
               </div>
-
               <div>
-                <p className="text-sm font-bold text-gray-800">
-                  QuickCL
+                <p className="text-sm font-bold text-[#1c1c1e]">
+                  QuickCL Engine
                 </p>
-
-                <p className="text-[11px] text-gray-400">
-                  AI customs document extraction
+                <p className="text-xs text-[#48484a]">
+                  High-accuracy customs document extraction
                 </p>
               </div>
-
             </div>
-
           </div>
-
         </div>
 
-
-        {/* Usage */}
-        <div className="card-base p-5">
-
+        {/* Usage Card */}
+        <div className="rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
           <div className="flex items-center gap-3 mb-5">
-
-            <div
-              className="w-9 h-9 rounded-lg bg-green-100
-                text-green-700 flex items-center justify-center"
-            >
-              <BarChart3 size={17} />
+            <div className="w-10 h-10 rounded-[12px] bg-white border border-[rgba(60,60,67,0.18)] text-[#1c1c1e] flex items-center justify-center shadow-2xs">
+              <BarChart3 size={18} strokeWidth={2.2} />
             </div>
-
             <div>
-              <h2 className="text-sm font-bold text-gray-800">
-                Usage
+              <h2 className="text-base font-bold text-[#1c1c1e] tracking-tight">
+                Usage Analytics
               </h2>
-
-              <p className="text-[11px] text-gray-400">
-                Your extraction activity
+              <p className="text-xs text-[#48484a]">
+                Total documents processed to date
               </p>
             </div>
-
           </div>
 
-
-          <div className="flex items-center gap-4">
-
-            <div
-              className="text-4xl font-black
-                text-blue-800"
-            >
+          <div className="flex items-center gap-5">
+            <div className="text-4xl font-bold tracking-tight text-[#1c1c1e]">
               {user?.extractionsUsed || 0}
             </div>
 
             <div>
-              <p className="text-sm font-bold text-gray-700">
-                Extractions used
+              <p className="text-xs font-semibold text-[#1c1c1e]">
+                Extractions utilized
               </p>
-
-              <p className="text-[11px] text-gray-400 mt-0.5">
-                Contact support for plan upgrades
+              <p className="text-xs text-[#636366] mt-0.5">
+                Upgrades take effect immediately upon request
               </p>
             </div>
-
           </div>
-
         </div>
-
       </div>
 
-
-      {/* =====================================================
-          ACCOUNT STATUS
-      ====================================================== */}
-      <div className="card-base p-5 mb-4">
-
+      {/* ================= ACCOUNT STATUS ================= */}
+      <div className="rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
         <div className="flex items-center justify-between">
-
           <div className="flex items-center gap-3">
-
-            <div
-              className="w-9 h-9 rounded-lg bg-green-100
-                text-green-700 flex items-center justify-center"
-            >
-              <ShieldCheck size={17} />
+            <div className="w-10 h-10 rounded-[12px] bg-white border border-[rgba(60,60,67,0.18)] text-[#1c1c1e] flex items-center justify-center shadow-2xs">
+              <ShieldCheck size={20} strokeWidth={2.2} />
             </div>
-
             <div>
-              <h2 className="text-sm font-bold text-gray-800">
+              <h2 className="text-base font-bold text-[#1c1c1e] tracking-tight">
                 Account Status
               </h2>
-
-              <p className="text-[11px] text-gray-400">
-                Your QuickCL account is active
+              <p className="text-xs text-[#48484a]">
+                Your QuickCL workspace is in good standing
               </p>
             </div>
-
           </div>
 
-          <span
-            className="flex items-center gap-1.5
-              text-[10px] font-bold uppercase
-              px-2.5 py-1 rounded-full
-              bg-green-100 text-green-700"
-          >
-            <span
-              className="w-1.5 h-1.5 rounded-full
-                bg-green-600"
-            />
+          <span className="flex items-center gap-2 text-xs font-semibold px-3 py-1 rounded-full bg-[#34c759]/15 text-[#28a745] border border-[#34c759]/30">
+            <span className="w-2 h-2 rounded-full bg-[#34c759] animate-pulse" />
             Active
           </span>
-
         </div>
-
       </div>
 
-
-      {/* =====================================================
-          SUPPORT
-      ====================================================== */}
-      <div
-        className="bg-blue-50 border border-blue-200
-          rounded-xl p-5"
-      >
-
-        <div className="flex items-start gap-3">
-
-          <div
-            className="w-9 h-9 rounded-lg bg-white
-              border border-blue-200 text-blue-800
-              flex items-center justify-center shrink-0"
-          >
-            <Phone size={16} />
+      {/* ================= SUPPORT ================= */}
+      <div className="rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+        <div className="flex items-start gap-4">
+          <div className="w-10 h-10 rounded-[12px] bg-white border border-[rgba(60,60,67,0.18)] text-[#1c1c1e] flex items-center justify-center shrink-0 shadow-2xs">
+            <Phone size={18} strokeWidth={2.2} />
           </div>
 
           <div>
-
-            <p className="text-sm font-bold text-blue-900">
-              Need help?
+            <p className="text-sm font-bold text-[#1c1c1e]">
+              Need Help or Technical Support?
             </p>
-
-            <p className="text-xs text-blue-700 mt-1">
-              WhatsApp{' '}
-              <strong>+91 8160024858</strong>
-              {' · '}
-              Aman Dana
-              {' · '}
-              MAPS Tech & AI
+            <p className="text-xs text-[#48484a] mt-1 leading-relaxed">
+              Connect via WhatsApp at{' '}
+              <strong className="text-[#1c1c1e]">+91 8160024858</strong> (Aman Dana · MAPS Tech & AI).
             </p>
-
           </div>
-
         </div>
-
       </div>
-
     </div>
   );
 }

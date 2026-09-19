@@ -1,116 +1,9 @@
-// import { useState, useEffect } from 'react';
-// import { useNavigate } from 'react-router-dom';
-// import { getHistory } from '../api';
-// import EmptyState from '../components/EmptyState';
-// import { Clock, ArrowRight, Search, Filter } from 'lucide-react';
-
-// export default function History() {
-//   const navigate = useNavigate();
-//   const [extractions, setExtractions] = useState([]);
-//   const [total, setTotal] = useState(0);
-//   const [page, setPage] = useState(1);
-//   const [typeFilter, setTypeFilter] = useState('');
-//   const [loading, setLoading] = useState(true);
-
-//   const fetchData = (p = 1, type = '') => {
-//     setLoading(true);
-//     getHistory(p, type)
-//       .then((res) => {
-//         setExtractions(res.data.extractions || []);
-//         setTotal(res.data.total || 0);
-//       })
-//       .catch(() => {})
-//       .finally(() => setLoading(false));
-//   };
-
-//   useEffect(() => { fetchData(page, typeFilter); }, [page, typeFilter]);
-
-//   const totalPages = Math.ceil(total / 20);
-
-//   return (
-//     <div className="max-w-5xl">
-//       <div className="flex items-center justify-between mb-6">
-//         <div>
-//           <h1 className="text-2xl font-black text-gray-900">Extraction History</h1>
-//           <p className="text-sm text-gray-400">{total} total extractions</p>
-//         </div>
-//         <div className="flex gap-2">
-//           {['', 'BOE', 'SB'].map((t) => (
-//             <button key={t} onClick={() => { setTypeFilter(t); setPage(1); }}
-//               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all
-//                 ${typeFilter === t ? 'bg-blue-800 text-white' : 'bg-white border text-gray-600'}`}>
-//               {t || 'All'}
-//             </button>
-//           ))}
-//         </div>
-//       </div>
-
-//       <div className="card-base overflow-hidden">
-//         {/* Table header */}
-//         <div className="grid grid-cols-[80px_1fr_100px_100px_80px_40px] gap-2 px-4 py-3
-//           bg-gray-800 text-white text-[10px] font-bold uppercase tracking-wider">
-//           <span>Type</span><span>Job Number</span><span>Date</span>
-//           <span>Status</span><span>Score</span><span></span>
-//         </div>
-
-//         {loading ? (
-//           <div className="p-8 text-center text-sm text-gray-400">Loading...</div>
-//         ) : extractions.length === 0 ? (
-//           <EmptyState title="No extractions found" message="Try a different filter or start extracting"
-//             action="New Extraction" onAction={() => navigate('/extract')} />
-//         ) : (
-//           <div className="divide-y">
-//             {extractions.map((ext) => (
-//               <div key={ext.id}
-//                 className="grid grid-cols-[80px_1fr_100px_100px_80px_40px] gap-2 px-4 py-3
-//                   hover:bg-blue-50 cursor-pointer items-center transition-colors"
-//                 onClick={() => navigate(`/results/${ext.id}`)}>
-//                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded text-center
-//                   ${ext.doc_type === 'BOE' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
-//                   {ext.doc_type}
-//                 </span>
-//                 <span className="text-sm font-bold text-gray-800 truncate">{ext.job_number}</span>
-//                 <span className="text-xs text-gray-400">
-//                   {new Date(ext.created_at).toLocaleDateString('en-IN')}
-//                 </span>
-//                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded text-center
-//                   ${ext.status === 'completed' ? 'bg-green-100 text-green-800' :
-//                     ext.status === 'error' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
-//                   {ext.status}
-//                 </span>
-//                 <span className="text-xs font-bold text-green-700">
-//                   {ext.accuracy_score?.toFixed(1) || '--'}%
-//                 </span>
-//                 <ArrowRight size={14} className="text-gray-300" />
-//               </div>
-//             ))}
-//           </div>
-//         )}
-
-//         {/* Pagination */}
-//         {totalPages > 1 && (
-//           <div className="flex items-center justify-center gap-2 px-4 py-3 border-t bg-gray-50">
-//             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
-//               className="btn-secondary text-xs">Previous</button>
-//             <span className="text-xs text-gray-500">Page {page} of {totalPages}</span>
-//             <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
-//               className="btn-secondary text-xs">Next</button>
-//           </div>
-//         )}
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
-
-
-
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getHistory } from '../api';
-import EmptyState from '../components/EmptyState';
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { getHistory } from "../api";
+import StatsCard from "../components/StatsCard";
+import EmptyState from "../components/EmptyState";
 
 import {
   Clock,
@@ -118,558 +11,598 @@ import {
   Search,
   Filter,
   FileText,
+  Upload,
+  RefreshCw,
   ChevronLeft,
   ChevronRight,
-  RefreshCw,
-} from 'lucide-react';
+  TrendingUp,
+  Award,
+  Scan,
+  X,
+} from "lucide-react";
 
 export default function History() {
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [extractions, setExtractions] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [typeFilter, setTypeFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const [counts, setCounts] = useState({ boe: 0, sb: 0, image: 0, scanned: 0, all: 0 });
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchData = (p = 1, type = '') => {
-    setLoading(true);
+  const [counts, setCounts] = useState({
+    boe: 0,
+    sb: 0,
+    image: 0,
+    scanned: 0,
+    all: 0,
+  });
 
-    getHistory(p, type)
-      .then((res) => {
-        setExtractions(res.data.extractions || []);
-        setTotal(res.data.total || 0);
-        if (res.data.counts) {
-          setCounts(res.data.counts);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  };
+  const [stats, setStats] = useState({
+    total: 0,
+    thisMonth: 0,
+    avgAccuracy: 0,
+  });
+
+  // Debounce search term input by 350ms
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchTerm.trim());
+      setPage(1);
+    }, 350);
+
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // Fetch extraction records
+  const fetchData = useCallback(
+    (p = 1, type = "", search = "", isRefresh = false) => {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      getHistory(p, type, search)
+        .then((res) => {
+          const items = res.data.extractions || [];
+          setExtractions(items);
+          setTotal(res.data.total || 0);
+
+          if (res.data.counts) {
+            setCounts(res.data.counts);
+          }
+
+          if (res.data.stats) {
+            setStats(res.data.stats);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load history:", err);
+        })
+        .finally(() => {
+          setLoading(false);
+          setRefreshing(false);
+        });
+    },
+    []
+  );
 
   useEffect(() => {
-    fetchData(page, typeFilter);
-  }, [page, typeFilter]);
+    fetchData(page, typeFilter, debouncedSearch);
+  }, [fetchData, page, typeFilter, debouncedSearch]);
 
-  const totalPages = Math.ceil(total / 20);
+  const handleManualRefresh = () => {
+    fetchData(page, typeFilter, debouncedSearch, true);
+  };
+
+  const handleOpenExtraction = (ext) => {
+    if (ext.result_type === "image") {
+      navigate(`/image-results/${ext.id}`);
+    } else if (ext.result_type === "scanned") {
+      navigate(`/scanned-results/${ext.id}`);
+    } else {
+      navigate(`/results/${ext.id}`);
+    }
+  };
+
+  const totalPages = Math.ceil(total / 20) || 1;
+
+  const filterTabs = [
+    { label: "All Records", value: "", count: counts.all },
+    { label: "Bill of Entry (BOE)", value: "BOE", count: counts.boe },
+    { label: "Shipping Bill (SB)", value: "SB", count: counts.sb },
+    { label: "Scanned PDF", value: "SCANNED", count: counts.scanned },
+    { label: "Images", value: "IMAGE", count: counts.image },
+  ];
 
   return (
-    <div className="space-y-7 pb-12 max-w-7xl mx-auto">
-
-      {/* =========================================================
-          HEADER
-      ========================================================= */}
-
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-
-        <div className="flex items-start gap-4">
-
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50">
-
-            <Clock
-              size={24}
-              className="text-blue-900"
-            />
-
+    <div className="space-y-6 pb-12 max-w-7xl mx-auto">
+      {/* ================= HERO BANNER (Apple HIG) ================= */}
+      <div className="relative overflow-hidden rounded-[20px] bg-white p-7 sm:p-8 shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-[rgba(60,60,67,0.12)]">
+        <div className="relative z-10 max-w-3xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#007aff]/20 bg-[#007aff]/10 px-3 py-1 text-xs font-semibold text-[#1c1c1e]">
+            <Clock size={14} className="text-[#007aff]" strokeWidth={2.2} />
+            Historical Audit Trail & Extraction Archive
           </div>
 
-          <div>
-
-            <div className="mb-1 flex items-center gap-2">
-
-              <h1 className="text-2xl font-black tracking-tight text-slate-900">
-                Extraction History
-              </h1>
-
-              <span className="hidden rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-800 sm:inline-block">
-                {total} RECORDS
-              </span>
-
-            </div>
-
-            <p className="text-sm text-slate-400">
-              View and manage your previous document extractions
-            </p>
-
-          </div>
-
-        </div>
-
-
-        {/* Total */}
-
-        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-
-          <FileText
-            size={16}
-            className="text-blue-800"
-          />
-
-          <div>
-
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Total Extractions
-            </p>
-
-            <p className="text-sm font-black text-slate-900">
-              {counts.all}
-            </p>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-      {/* =========================================================
-          FILTER BAR
-      ========================================================= */}
-
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
-          <div className="flex items-center gap-2">
-
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
-
-              <Filter
-                size={15}
-                className="text-slate-600"
-              />
-
-            </div>
-
-            <div>
-
-              <p className="text-xs font-black text-slate-800">
-                Filter Extractions
-              </p>
-
-              <p className="text-[10px] text-slate-400">
-                Filter by document type
-              </p>
-
-            </div>
-
-          </div>
-
-
-          {/* Filters */}
-
-          <div className="flex items-center gap-2">
-
-            {[
-              { label: 'All', value: '', count: counts.all },
-              { label: 'BOE', value: 'BOE', count: counts.boe },
-              { label: 'SB', value: 'SB', count: counts.sb },
-              { label: 'Image', value: 'IMAGE', count: counts.image },
-              { label: 'Scanned', value: 'SCANNED', count: counts.scanned || 0 },
-            ].map((btn) => (
-
-              <button
-                key={btn.value}
-                onClick={() => {
-                  setTypeFilter(btn.value);
-                  setPage(1);
-                }}
-                className={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${
-                  typeFilter === btn.value
-                    ? 'bg-blue-950 text-white shadow-md'
-                    : 'border border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50'
-                }`}
-              >
-
-                {btn.label} ({btn.count})
-
-              </button>
-
-            ))}
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-      {/* =========================================================
-          HISTORY TABLE
-      ========================================================= */}
-
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-
-        {/* Table Header */}
-
-        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4">
-
-          <div>
-
-            <h2 className="flex items-center gap-2 text-sm font-black text-slate-900">
-
-              
-
-              Extraction Records
-
-            </h2>
-
-            <p className="mt-0.5 text-[11px] text-slate-400">
-
-              Click any extraction to view its complete result
-
-            </p>
-
-          </div>
-
-
-          <button
-            onClick={() => fetchData(page, typeFilter)}
-            disabled={loading}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:bg-blue-50 hover:text-blue-800 disabled:opacity-50"
-            title="Refresh"
-          >
-
-            <RefreshCw
-              size={14}
-              className={loading ? 'animate-spin' : ''}
-            />
-
-          </button>
-
-        </div>
-
-
-        {/* Column Header */}
-
-        <div className="hidden grid-cols-[90px_1fr_120px_120px_100px_40px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3 md:grid">
-
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Type
-          </span>
-
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Job Number
-          </span>
-
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Date
-          </span>
-
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Status
-          </span>
-
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Score
-          </span>
-
-          <span />
-
-        </div>
-
-
-        {/* =====================================================
-            CONTENT
-        ===================================================== */}
-
-        {loading ? (
-
-          <div className="p-14 text-center">
-
-            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
-
+          <h1 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight text-[#1c1c1e]">
+            Extraction History
+          </h1>
+
+          <p className="mt-2 text-sm sm:text-base text-[#48484a] leading-relaxed">
+            Review, inspect, and export your previous document extractions across
+            Bills of Entry, Shipping Bills, and Vision OCR records.
+          </p>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button
+              onClick={() => navigate("/extract")}
+              className="flex items-center gap-2 rounded-[14px] bg-[#007aff] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0066d6] active:scale-[0.98]"
+            >
+              <Upload size={16} strokeWidth={2.2} />
+              Start New Extraction
+            </button>
+
+            <button
+              onClick={handleManualRefresh}
+              disabled={refreshing || loading}
+              className="flex items-center gap-2 rounded-[14px] border border-[rgba(60,60,67,0.15)] bg-[#f2f2f7] px-5 py-3 text-sm font-semibold text-[#1c1c1e] transition hover:bg-[#e5e5ea] active:scale-[0.98] disabled:opacity-50"
+            >
               <RefreshCw
-                size={20}
-                className="animate-spin text-blue-800"
+                size={15}
+                strokeWidth={2.2}
+                className={refreshing ? "animate-spin text-[#007aff]" : ""}
               />
+              {refreshing ? "Refreshing..." : "Refresh Records"}
+            </button>
+          </div>
+        </div>
+      </div>
 
-            </div>
+      {/* ================= STATS SUMMARY WIDGETS ================= */}
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <StatsCard
+          icon={FileText}
+          label="Total Extractions"
+          value={counts.all ?? stats.total ?? total}
+          color="blue"
+          sub="All processed documents"
+        />
 
-            <p className="mt-4 text-sm font-semibold text-slate-600">
-              Loading extraction history...
-            </p>
+        <StatsCard
+          icon={TrendingUp}
+          label="Bill of Entry (BOE)"
+          value={counts.boe ?? 0}
+          color="green"
+          sub="Import customs filings"
+        />
 
-            <p className="mt-1 text-xs text-slate-400">
-              Fetching your latest records
-            </p>
+        <StatsCard
+          icon={Award}
+          label="Shipping Bill (SB)"
+          value={counts.sb ?? 0}
+          color="purple"
+          sub="Export customs filings"
+        />
 
+        <StatsCard
+          icon={Scan}
+          label="Scanned & Images"
+          value={(counts.scanned || 0) + (counts.image || 0)}
+          color="gold"
+          sub="Vision & OCR extractions"
+        />
+      </div>
+
+      {/* ================= FILTER & SEARCH BAR ================= */}
+      <div className="rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white p-5 sm:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)] space-y-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          {/* Document Type Filter Tabs (Apple HIG Segmented Pills) */}
+          <div className="flex flex-wrap items-center gap-2">
+            {filterTabs.map((tab) => {
+              const isActive = typeFilter === tab.value;
+              return (
+                <button
+                  key={tab.value}
+                  onClick={() => {
+                    setTypeFilter(tab.value);
+                    setPage(1);
+                  }}
+                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-all active:scale-[0.97] ${
+                    isActive
+                      ? "bg-[#007aff] text-white shadow-[0_2px_8px_rgba(0,122,255,0.25)]"
+                      : "bg-[#f2f2f7] text-[#48484a] hover:text-[#1c1c1e] hover:bg-[#e5e5ea] border border-transparent"
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+                      isActive
+                        ? "bg-white/20 text-white"
+                        : "bg-[rgba(60,60,67,0.08)] text-[#1c1c1e]"
+                    }`}
+                  >
+                    {tab.count ?? 0}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-        ) : extractions.length === 0 ? (
-
-          <EmptyState
-            title="No extractions found"
-            message="Try a different filter or start extracting"
-            action="New Extraction"
-            onAction={() => navigate('/extract')}
-          />
-
-        ) : (
-
-          <div className="divide-y divide-slate-100">
-
-            {extractions.map((ext) => (
-
-              <div
-                key={ext.id}
-                className="group cursor-pointer transition-colors hover:bg-blue-50/40"
-                //onClick={() => navigate(`/results/${ext.id}`)}
-                onClick={() =>
-                  navigate(
-                    ext.result_type === 'image'
-                      ? `/image-results/${ext.id}`
-                      : ext.result_type === 'scanned'
-                      ? `/scanned-results/${ext.id}`
-                      : `/results/${ext.id}`
-                  )
-                }
+          {/* Search Input matching Dashboard */}
+          <div className="relative w-full lg:w-72">
+            <Search
+              className="absolute left-3.5 top-3 text-[#636366]"
+              size={16}
+            />
+            <input
+              type="text"
+              placeholder="Search job number..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full rounded-[14px] bg-[#f2f2f7] border border-transparent py-2.5 pl-9 pr-9 text-sm text-[#1c1c1e] placeholder-[#636366] outline-none transition focus:border-[#007aff] focus:bg-white focus:ring-2 focus:ring-[#007aff]/15"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-3 text-[#636366] hover:text-[#1c1c1e] transition"
+                title="Clear search"
               >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
-                {/* Desktop Row */}
+      {/* ================= EXTRACTIONS TABLE CARD ================= */}
+      <div className="rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.04)] overflow-hidden">
+        {/* Table Top Header */}
+        <div className="flex flex-col gap-4 border-b border-[rgba(60,60,67,0.1)] p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="flex items-center gap-2 text-lg font-bold text-[#1c1c1e]">
+              <Clock className="text-[#007aff]" size={20} strokeWidth={2.2} />
+              Extraction Records
+            </h2>
+            <p className="mt-0.5 text-xs text-[#48484a]">
+              {total > 0
+                ? `Showing ${extractions.length} of ${total} total records. Click any row to view complete results.`
+                : "Manage and inspect previous extraction jobs."}
+            </p>
+          </div>
 
-                <div className="hidden grid-cols-[90px_1fr_120px_120px_100px_40px] items-center gap-3 px-5 py-4 md:grid">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleManualRefresh}
+              disabled={refreshing || loading}
+              className="flex items-center gap-2 rounded-[12px] border border-[rgba(60,60,67,0.12)] bg-[#f2f2f7] px-3.5 py-2 text-xs font-semibold text-[#1c1c1e] transition hover:bg-[#e5e5ea] active:scale-95 disabled:opacity-50"
+              title="Refresh table"
+            >
+              <RefreshCw
+                size={13}
+                strokeWidth={2.2}
+                className={refreshing ? "animate-spin text-[#007aff]" : ""}
+              />
+              <span>Refresh</span>
+            </button>
+          </div>
+        </div>
 
-                  {/* Type */}
+        {/* Loading State */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-[16px] bg-[#007aff]/10 text-[#007aff] mb-3">
+              <RefreshCw size={22} className="animate-spin" strokeWidth={2.2} />
+            </div>
+            <p className="text-sm font-semibold text-[#1c1c1e]">
+              Loading extractions...
+            </p>
+            <p className="mt-1 text-xs text-[#636366]">
+              Fetching your records from the server
+            </p>
+          </div>
+        ) : extractions.length === 0 ? (
+          <div className="p-8">
+            <EmptyState
+              title={
+                searchTerm || typeFilter
+                  ? "No matching records"
+                  : "No Extractions Found"
+              }
+              message={
+                searchTerm || typeFilter
+                  ? "No extractions matched your current filter or search criteria. Try clearing them to see all records."
+                  : "Upload your first commercial invoice or shipping bill to generate customs-ready records."
+              }
+              action={
+                searchTerm || typeFilter
+                  ? "Clear All Filters"
+                  : "Start New Extraction"
+              }
+              onAction={() => {
+                if (searchTerm || typeFilter) {
+                  setSearchTerm("");
+                  setTypeFilter("");
+                  setPage(1);
+                } else {
+                  navigate("/extract");
+                }
+              }}
+            />
+          </div>
+        ) : (
+          <div>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-[rgba(60,60,67,0.1)] bg-[#f9f9fb] text-[11px] font-semibold uppercase tracking-[0.06em] text-[#48484a]">
+                    <th className="px-6 py-3.5 text-left">Job Number</th>
+                    <th className="px-6 py-3.5 text-left">Document Type</th>
+                    <th className="px-6 py-3.5 text-center">Status</th>
+                    <th className="px-6 py-3.5 text-center">Accuracy</th>
+                    <th className="px-6 py-3.5 text-center">Processed Date</th>
+                    <th className="px-6 py-3.5 text-right">Action</th>
+                  </tr>
+                </thead>
 
-                  <div>
-
-                    <span
-                      className={`inline-flex rounded-lg px-2.5 py-1 text-[10px] font-black ${
-                        ext.result_type === 'scanned'
-                          ? 'bg-teal-100 text-teal-800'
-                          : ext.doc_type === 'BOE'
-                          ? 'bg-blue-100 text-blue-800'
-                          : ext.doc_type === 'IMAGE' || ext.doc_type === 'image'
-                          ? 'bg-purple-100 text-purple-800'
-                          : 'bg-green-100 text-green-800'
-                      }`}
+                <tbody className="divide-y divide-[rgba(60,60,67,0.06)]">
+                  {extractions.map((ext) => (
+                    <tr
+                      key={`${ext.result_type || "pdf"}-${ext.id}`}
+                      onClick={() => handleOpenExtraction(ext)}
+                      className="cursor-pointer transition hover:bg-[#f9f9fb]/80"
                     >
-                      {ext.result_type === 'scanned' ? `SCANNED ${ext.doc_type}` : ext.doc_type}
-                    </span>
+                      {/* Job Number & Metadata */}
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-[#1c1c1e]">
+                          {ext.job_number || "Unnamed Extraction"}
+                        </div>
+                        <div className="mt-0.5 text-[11px] text-[#636366]">
+                          ID #{ext.id}
+                          {ext.extraction_time_ms
+                            ? ` • ${(ext.extraction_time_ms / 1000).toFixed(1)}s`
+                            : ""}
+                        </div>
+                      </td>
 
-                  </div>
+                      {/* Document Type Badge */}
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                            ext.result_type === "scanned"
+                              ? "bg-[#5856d6]/10 text-[#5856d6] border border-[#5856d6]/20"
+                              : ext.doc_type === "BOE"
+                              ? "bg-[#007aff]/10 text-[#007aff] border border-[#007aff]/20"
+                              : ext.doc_type === "SB"
+                              ? "bg-[#34c759]/10 text-[#28a745] border border-[#34c759]/20"
+                              : ext.doc_type === "IMAGE" ||
+                                ext.result_type === "image"
+                              ? "bg-[#af52de]/10 text-[#af52de] border border-[#af52de]/20"
+                              : "bg-[#ff9500]/10 text-[#ff9500] border border-[#ff9500]/20"
+                          }`}
+                        >
+                          {ext.result_type === "scanned"
+                            ? `SCANNED ${ext.doc_type || "PDF"}`
+                            : ext.doc_type || "PDF"}
+                        </span>
+                      </td>
 
+                      {/* Status Badge */}
+                      <td className="px-6 py-4 text-center">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                            ext.status === "completed"
+                              ? "bg-[#34c759]/10 text-[#28a745] border border-[#34c759]/25"
+                              : ext.status === "error"
+                              ? "bg-[#ff3b30]/10 text-[#ff3b30] border border-[#ff3b30]/25"
+                              : "bg-[#ff9500]/10 text-[#ff9500] border border-[#ff9500]/25"
+                          }`}
+                        >
+                          <span
+                            className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+                              ext.status === "completed"
+                                ? "bg-[#34c759]"
+                                : ext.status === "error"
+                                ? "bg-[#ff3b30]"
+                                : "bg-[#ff9500]"
+                            }`}
+                          />
+                          {ext.status
+                            ? ext.status.charAt(0).toUpperCase() +
+                              ext.status.slice(1)
+                            : "Completed"}
+                        </span>
+                      </td>
 
-                  {/* Job Number */}
+                      {/* Accuracy Score */}
+                      <td className="px-6 py-4 text-center">
+                        <span
+                          className={`font-semibold ${
+                            (ext.accuracy_score || 0) >= 90
+                              ? "text-[#34c759]"
+                              : (ext.accuracy_score || 0) >= 75
+                              ? "text-[#007aff]"
+                              : "text-[#ff9500]"
+                          }`}
+                        >
+                          {ext.accuracy_score != null
+                            ? `${ext.accuracy_score.toFixed(1)}%`
+                            : "--"}
+                        </span>
+                      </td>
 
-                  <div className="min-w-0">
-
-                    <p className="truncate text-sm font-black text-slate-800">
-
-                      {ext.job_number}
-
-                    </p>
-
-                    <p className="mt-0.5 text-[10px] text-slate-400">
-                      Extraction #{ext.id}
-                    </p>
-
-                  </div>
-
-
-                  {/* Date */}
-
-                  <span className="text-xs font-medium text-slate-500">
-
-                    {new Date(ext.created_at).toLocaleDateString(
-                      'en-IN'
-                    )}
-
-                  </span>
-
-
-                  {/* Status */}
-
-                  <span
-                    className={`inline-flex w-fit rounded-lg px-2.5 py-1 text-[10px] font-black ${
-                      ext.status === 'completed'
-                        ? 'bg-green-100 text-green-800'
-                        : ext.status === 'error'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}
-                  >
-
-                    {ext.status}
-
-                  </span>
-
-
-                  {/* Score */}
-
-                  <span
-                    className={`text-xs font-black ${
-                      ext.accuracy_score != null
-                        ? 'text-green-700'
-                        : 'text-slate-400'
-                    }`}
-                  >
-
-                    {ext.accuracy_score?.toFixed(1) || '--'}%
-
-                  </span>
-
-
-                  {/* Arrow */}
-
-                  <ArrowRight
-                    size={15}
-                    className="text-slate-300 transition-all group-hover:translate-x-1 group-hover:text-blue-700"
-                  />
-
-                </div>
-
-
-                {/* =================================================
-                    MOBILE ROW
-                ================================================= */}
-
-                <div className="p-4 md:hidden">
-
-                  <div className="flex items-start justify-between gap-3">
-
-                    <div className="flex min-w-0 items-center gap-3">
-
-                      <span
-                        className={`shrink-0 rounded-lg px-2.5 py-1 text-[10px] font-black ${
-                          ext.result_type === 'scanned'
-                            ? 'bg-teal-100 text-teal-800'
-                            : ext.doc_type === 'BOE'
-                            ? 'bg-blue-100 text-blue-800'
-                            : ext.doc_type === 'IMAGE' || ext.doc_type === 'image'
-                            ? 'bg-purple-100 text-purple-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}
-                      >
-                        {ext.result_type === 'scanned' ? `SCANNED ${ext.doc_type}` : ext.doc_type}
-                      </span>
-
-                      <div className="min-w-0">
-
-                        <p className="truncate text-sm font-black text-slate-800">
-                          {ext.job_number}
-                        </p>
-
-                        <p className="mt-0.5 text-[10px] text-slate-400">
+                      {/* Date & Time */}
+                      <td className="px-6 py-4 text-center">
+                        <div className="text-xs text-[#1c1c1e] font-medium">
                           {new Date(ext.created_at).toLocaleDateString(
-                            'en-IN'
+                            "en-IN",
+                            {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            }
                           )}
-                        </p>
+                        </div>
+                        <div className="text-[11px] text-[#636366]">
+                          {new Date(ext.created_at).toLocaleTimeString(
+                            "en-IN",
+                            {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }
+                          )}
+                        </div>
+                      </td>
 
+                      {/* Open Action Button */}
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenExtraction(ext);
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-[10px] bg-[#007aff] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0066d6] active:scale-95"
+                        >
+                          Open
+                          <ArrowRight size={13} strokeWidth={2.2} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card List (Below 768px - Responsive without horizontal scroll) */}
+            <div className="divide-y divide-[rgba(60,60,67,0.08)] md:hidden">
+              {extractions.map((ext) => (
+                <div
+                  key={`m-${ext.result_type || "pdf"}-${ext.id}`}
+                  onClick={() => handleOpenExtraction(ext)}
+                  className="p-5 transition active:bg-[#f9f9fb] cursor-pointer space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-semibold text-sm text-[#1c1c1e]">
+                        {ext.job_number || "Unnamed Extraction"}
                       </div>
-
+                      <div className="text-[11px] text-[#636366] mt-0.5">
+                        ID #{ext.id} •{" "}
+                        {new Date(ext.created_at).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </div>
                     </div>
 
-
-                    <ArrowRight
-                      size={15}
-                      className="mt-1 shrink-0 text-slate-300"
-                    />
-
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenExtraction(ext);
+                      }}
+                      className="inline-flex items-center gap-1 rounded-[10px] bg-[#007aff] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0066d6] active:scale-95 shrink-0"
+                    >
+                      Open
+                      <ArrowRight size={12} strokeWidth={2.2} />
+                    </button>
                   </div>
 
-
-                  <div className="mt-4 flex items-center justify-between">
-
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[rgba(60,60,67,0.06)] text-xs">
                     <span
-                      className={`rounded-lg px-2.5 py-1 text-[10px] font-black ${
-                        ext.status === 'completed'
-                          ? 'bg-green-100 text-green-800'
-                          : ext.status === 'error'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-yellow-100 text-yellow-800'
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
+                        ext.result_type === "scanned"
+                          ? "bg-[#5856d6]/10 text-[#5856d6] border border-[#5856d6]/20"
+                          : ext.doc_type === "BOE"
+                          ? "bg-[#007aff]/10 text-[#007aff] border border-[#007aff]/20"
+                          : ext.doc_type === "SB"
+                          ? "bg-[#34c759]/10 text-[#28a745] border border-[#34c759]/20"
+                          : "bg-[#af52de]/10 text-[#af52de] border border-[#af52de]/20"
                       }`}
                     >
-                      {ext.status}
+                      {ext.result_type === "scanned"
+                        ? `SCANNED ${ext.doc_type || "PDF"}`
+                        : ext.doc_type || "PDF"}
                     </span>
 
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] text-[#48484a]">
+                        Accuracy:{" "}
+                        <strong className="text-[#1c1c1e]">
+                          {ext.accuracy_score != null
+                            ? `${ext.accuracy_score.toFixed(1)}%`
+                            : "--"}
+                        </strong>
+                      </span>
 
-                    <span className="text-xs font-black text-green-700">
-
-                      {ext.accuracy_score?.toFixed(1) || '--'}%
-
-                    </span>
-
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          ext.status === "completed"
+                            ? "bg-[#34c759]/10 text-[#28a745]"
+                            : ext.status === "error"
+                            ? "bg-[#ff3b30]/10 text-[#ff3b30]"
+                            : "bg-[#ff9500]/10 text-[#ff9500]"
+                        }`}
+                      >
+                        {ext.status || "completed"}
+                      </span>
+                    </div>
                   </div>
-
                 </div>
-
-              </div>
-
-            ))}
-
-          </div>
-
-        )}
-
-
-        {/* =========================================================
-            PAGINATION
-        ========================================================= */}
-
-        {totalPages > 1 && (
-
-          <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-
-            <p className="text-xs text-slate-500">
-
-              Page{' '}
-              <span className="font-bold text-slate-800">
-                {page}
-              </span>{' '}
-              of{' '}
-              <span className="font-bold text-slate-800">
-                {totalPages}
-              </span>
-
-            </p>
-
-
-            <div className="flex items-center gap-2">
-
-              <button
-                onClick={() =>
-                  setPage((p) => Math.max(1, p - 1))
-                }
-                disabled={page <= 1}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition-all hover:bg-blue-50 hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-
-                <ChevronLeft size={14} />
-
-                Previous
-
-              </button>
-
-
-              <button
-                onClick={() =>
-                  setPage((p) =>
-                    Math.min(totalPages, p + 1)
-                  )
-                }
-                disabled={page >= totalPages}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition-all hover:bg-blue-50 hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-
-                Next
-
-                <ChevronRight size={14} />
-
-              </button>
-
+              ))}
             </div>
 
+            {/* Pagination Footer */}
+            {totalPages > 1 && (
+              <div className="flex flex-col gap-3 border-t border-[rgba(60,60,67,0.1)] bg-[#f9f9fb] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-[#48484a]">
+                  Showing{" "}
+                  <span className="font-semibold text-[#1c1c1e]">
+                    {(page - 1) * 20 + 1}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-semibold text-[#1c1c1e]">
+                    {Math.min(page * 20, total)}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold text-[#1c1c1e]">{total}</span>{" "}
+                  records
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className="flex items-center gap-1.5 rounded-[12px] border border-[rgba(60,60,67,0.15)] bg-white px-3 py-1.5 text-xs font-semibold text-[#1c1c1e] transition hover:bg-[#f2f2f7] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronLeft size={14} strokeWidth={2.2} />
+                    Previous
+                  </button>
+
+                  <span className="px-2 text-xs font-semibold text-[#48484a]">
+                    Page {page} of {totalPages}
+                  </span>
+
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                    className="flex items-center gap-1.5 rounded-[12px] border border-[rgba(60,60,67,0.15)] bg-white px-3 py-1.5 text-xs font-semibold text-[#1c1c1e] transition hover:bg-[#f2f2f7] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Next
+                    <ChevronRight size={14} strokeWidth={2.2} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-
         )}
-
       </div>
-
     </div>
   );
 }
-
-

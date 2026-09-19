@@ -1,10 +1,23 @@
 @import "tailwindcss";
 
-
+:root {
+  --apple-bg: #f2f2f7;
+  --apple-surface: #ffffff;
+  --apple-surface-strong: #f9f9fb;
+  --apple-border: rgba(60, 60, 67, 0.14);
+  --apple-border-strong: rgba(60, 60, 67, 0.29);
+  --apple-text: #1c1c1e;
+  --apple-text-muted: #48484a;
+  --apple-primary: #007aff;
+  --apple-accent: #34c759;
+}
 
 /* Custom utilities for our app */
 @layer base {
-  body { @apply bg-gray-50 text-gray-900 antialiased; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+    @apply bg-[#f2f2f7] text-[#1c1c1e] antialiased;
+  }
 }
 
 @layer components {

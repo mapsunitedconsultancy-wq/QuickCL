@@ -1,2531 +1,11 @@
-// import { useState, useEffect, useMemo } from 'react';
-// import { useParams, useNavigate } from 'react-router-dom';
-
-// import {
-//     getExtraction,
-//     editField,
-//     downloadExcel,
-//     downloadCSV,
-//     confirmHSCode,
-// } from '../api';
-
-// import FieldRow from '../components/FieldRow.jsx';
-// import HSCodeSuggestion from '../components/HSCodeSuggestion.jsx';
-// import ConfidenceBadge from '../components/ConfidenceBadge.jsx';
-
-// import {
-//     Loader2,
-//     Download,
-//     FileSpreadsheet,
-//     FileText,
-//     ArrowLeft,
-//     ShieldCheck,
-//     ShieldAlert,
-//     AlertTriangle,
-//     CheckCircle2,
-//     Clock,
-//     Database,
-//     Package,
-//     ExternalLink,
-//     Search,
-//     ChevronDown,
-//     ChevronUp,
-// } from 'lucide-react';
-
-// import toast from 'react-hot-toast';
-
-
-// // LINKS
-
-// const HS_LOOKUP_PATH = '/hs-lookup';
-
-// const ICEGATE_TRADE_GUIDE =
-//     'https://www.icegate.gov.in/Webappl/Trade-Guide-on-Imports';
-
-// const CBIC_TARIFF =
-//     'https://www.cbic.gov.in/entities/customs-tariff';
-
-
-// // ============================================================
-// // Helpers
-// // ============================================================
-
-// const getValue = (field) => {
-
-//     if (
-//         field &&
-//         typeof field === 'object' &&
-//         Object.prototype.hasOwnProperty.call(field, 'value')
-//     ) {
-//         return field.value;
-//     }
-
-//     return field ?? null;
-// };
-
-
-// const getConfidence = (field) => {
-
-//     if (
-//         field &&
-//         typeof field === 'object' &&
-//         Object.prototype.hasOwnProperty.call(field, 'confidence')
-//     ) {
-
-//         const score =
-//             Number(field.confidence);
-
-//         if (!Number.isNaN(score)) {
-//             return Math.max(0, Math.min(1, score));
-//         }
-//     }
-
-//     return 0;
-// };
-
-
-// const hasValue = (value) => {
-
-//     if (value === null || value === undefined) {
-//         return false;
-//     }
-
-//     if (typeof value === 'string') {
-//         return value.trim().length > 0;
-//     }
-
-//     if (Array.isArray(value)) {
-//         return value.length > 0;
-//     }
-
-//     return true;
-// };
-
-
-// const isFieldObject = (value) => {
-
-//     return (
-//         value &&
-//         typeof value === 'object' &&
-//         !Array.isArray(value) &&
-//         Object.prototype.hasOwnProperty.call(value, 'value') &&
-//         Object.prototype.hasOwnProperty.call(value, 'confidence')
-//     );
-// };
-
-
-// const label = (key) => {
-
-//     if (!key) return '';
-
-//     return String(key)
-//         .replace(/_/g, ' ')
-//         .replace(/([A-Z])/g, ' $1')
-//         .replace(/\s+/g, ' ')
-//         .replace(/^./, c => c.toUpperCase())
-//         .trim();
-// };
-
-
-// // ============================================================
-// // Section names
-// // ============================================================
-
-// const SECTION_TITLES = {
-
-//     job:
-//         'Job / File Header',
-
-//     importer_exporter:
-//         'Importer / Exporter',
-
-//     foreign_party:
-//         'Foreign Party',
-
-//     consignee:
-//         'Consignee / Buyer',
-
-//     shipment:
-//         'Shipment / Vessel',
-
-//     containers:
-//         'Container Details',
-
-//     invoice:
-//         'Invoice & Value',
-
-//     items:
-//         'Line Items',
-
-//     packing:
-//         'Packing Details',
-
-//     duty:
-//         'Duty & Tax',
-
-//     scheme:
-//         'Scheme Details',
-
-//     drawback:
-//         'Drawback',
-
-//     rodtep:
-//         'RoDTEP',
-
-//     esanchit:
-//         'e-Sanchit',
-
-//     declarations:
-//         'Declarations',
-
-//     licences:
-//         'Licences',
-
-//     certificate:
-//         'Certificate Information',
-
-//     additional:
-//         'Additional Information',
-
-// };
-
-
-// // ============================================================
-// // Recursively collect scalar fields
-// // ============================================================
-
-// function collectFields(section) {
-
-//     const extracted = [];
-//     const missing = [];
-
-//     function walk(node, path = []) {
-
-//         if (
-//             node === null ||
-//             node === undefined
-//         ) {
-//             return;
-//         }
-
-
-//         // -----------------------------------------------
-//         // Arrays
-//         // -----------------------------------------------
-
-//         if (Array.isArray(node)) {
-
-//             return;
-//         }
-
-
-//         // -----------------------------------------------
-//         // Standard field:
-//         //
-//         // {
-//         //   value,
-//         //   confidence
-//         // }
-//         // -----------------------------------------------
-
-//         if (isFieldObject(node)) {
-
-//             const value =
-//                 getValue(node);
-
-//             const field = {
-
-//                 key:
-//                     path.join('.'),
-
-//                 label:
-//                     label(
-//                         path[path.length - 1]
-//                     ),
-
-//                 value:
-//                     value,
-
-//                 confidence:
-//                     getConfidence(node)
-
-//             };
-
-
-//             if (hasValue(value)) {
-
-//                 extracted.push(field);
-
-//             } else {
-
-//                 missing.push(field);
-
-//             }
-
-//             return;
-//         }
-
-
-//         // -----------------------------------------------
-//         // Object
-//         // -----------------------------------------------
-
-//         if (
-//             typeof node === 'object'
-//         ) {
-
-//             for (
-//                 const [key, value]
-//                 of Object.entries(node)
-//             ) {
-
-//                 walk(
-//                     value,
-//                     [...path, key]
-//                 );
-
-//             }
-
-//             return;
-//         }
-
-
-//         // -----------------------------------------------
-//         // Primitive fallback
-//         // -----------------------------------------------
-
-//         const field = {
-
-//             key:
-//                 path.join('.'),
-
-//             label:
-//                 label(
-//                     path[path.length - 1]
-//                 ),
-
-//             value:
-//                 node,
-
-//             confidence:
-//                 1
-
-//         };
-
-
-//         if (hasValue(node)) {
-//             extracted.push(field);
-//         } else {
-//             missing.push(field);
-//         }
-//     }
-
-
-//     walk(section);
-
-//     return {
-//         extracted,
-//         missing
-//     };
-// }
-
-
-// // ============================================================
-// // Format display value
-// // ============================================================
-
-// function displayValue(value) {
-
-//     if (
-//         value === null ||
-//         value === undefined
-//     ) {
-//         return '';
-//     }
-
-
-//     if (typeof value === 'object') {
-
-//         try {
-
-//             return JSON.stringify(
-//                 value,
-//                 null,
-//                 2
-//             );
-
-//         } catch {
-
-//             return String(value);
-
-//         }
-//     }
-
-
-//     return String(value);
-// }
-
-
-// // ============================================================
-// // Build CSV
-// // ============================================================
-
-// function flattenForCSV(
-//     node,
-//     sectionName,
-//     rows,
-//     path = []
-// ) {
-
-//     if (
-//         node === null ||
-//         node === undefined
-//     ) {
-//         return;
-//     }
-
-
-//     if (Array.isArray(node)) {
-
-//         node.forEach(
-//             (item, index) => {
-
-//                 flattenForCSV(
-//                     item,
-//                     sectionName,
-//                     rows,
-//                     [...path, String(index + 1)]
-//                 );
-
-//             }
-//         );
-
-//         return;
-//     }
-
-
-//     if (
-//         typeof node === 'object'
-//     ) {
-
-//         if (isFieldObject(node)) {
-
-//             const value =
-//                 getValue(node);
-
-//             if (hasValue(value)) {
-
-//                 rows.push({
-
-//                     section:
-//                         sectionName,
-
-//                     field:
-//                         path
-//                             .map(label)
-//                             .join(' → '),
-
-//                     value:
-//                         displayValue(value),
-
-//                     confidence:
-//                         `${(
-//                             getConfidence(node) * 100
-//                         ).toFixed(1)}%`
-
-//                 });
-
-//             }
-
-//             return;
-//         }
-
-
-//         Object.entries(node)
-//             .forEach(
-//                 ([key, value]) => {
-
-//                     flattenForCSV(
-//                         value,
-//                         sectionName,
-//                         rows,
-//                         [...path, key]
-//                     );
-
-//                 }
-//             );
-
-//         return;
-//     }
-
-
-//     if (hasValue(node)) {
-
-//         rows.push({
-
-//             section:
-//                 sectionName,
-
-//             field:
-//                 path
-//                     .map(label)
-//                     .join(' → '),
-
-//             value:
-//                 displayValue(node),
-
-//             confidence:
-//                 '100%'
-
-//         });
-
-//     }
-// }
-
-
-// // ============================================================
-// // Section Card
-// // ============================================================
-
-// function DynamicSection({
-//     sectionKey,
-//     section,
-//     number,
-//     onEdit
-// }) {
-
-//     const {
-//         extracted,
-//         missing
-//     } =
-//         useMemo(
-//             () =>
-//                 collectFields(section),
-//             [section]
-//         );
-
-
-//     if (
-//         extracted.length === 0
-//     ) {
-//         return null;
-//     }
-
-
-//     return (
-
-//         <section
-//             className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
-//         >
-
-//             {/* Header */}
-
-//             <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
-
-//                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-
-//                     <div className="flex items-center gap-3">
-
-//                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-900 text-xs font-black text-white">
-
-//                             {number}
-
-//                         </div>
-
-//                         <div>
-
-//                             <h2 className="text-sm font-black text-slate-900">
-
-//                                 {SECTION_TITLES[
-//                                     sectionKey
-//                                 ] || label(sectionKey)}
-
-//                             </h2>
-
-//                             <p className="mt-0.5 text-[10px] text-slate-400">
-
-//                                 {extracted.length} extracted
-
-//                             </p>
-
-//                         </div>
-
-//                     </div>
-
-//                 </div>
-
-//             </div>
-
-
-//             {/* Extracted fields */}
-
-//             {extracted.length > 0 && (
-
-//                 <div className="divide-y divide-slate-100">
-
-//                     {extracted.map(
-//                         field => (
-
-//                             <FieldRow
-//                                 key={
-//                                     field.key
-//                                 }
-
-//                                 label={
-//                                     field.label
-//                                 }
-
-//                                 value={
-//                                     displayValue(
-//                                         field.value
-//                                     )
-//                                 }
-
-//                                 confidence={
-//                                     field.confidence
-//                                 }
-
-//                                 fieldKey={
-//                                     field.key
-//                                 }
-
-//                                 onEdit={
-//                                     onEdit
-//                                 }
-//                             />
-
-//                         )
-//                     )}
-
-//                 </div>
-
-//             )}
-
-//         </section>
-//     );
-// }
-
-
-// // ============================================================
-// // Results Component
-// // ============================================================
-
-// export default function Results() {
-
-//     const { id } =
-//         useParams();
-
-//     const navigate =
-//         useNavigate();
-
-
-//     const [
-//         data,
-//         setData
-//     ] =
-//         useState(null);
-
-
-//     const [
-//         items,
-//         setItems
-//     ] =
-//         useState([]);
-
-
-//     const [
-//         loading,
-//         setLoading
-//     ] =
-//         useState(true);
-
-
-//     // ========================================================
-//     // Load extraction
-//     // ========================================================
-
-//     useEffect(() => {
-
-//         getExtraction(id)
-
-//             .then(res => {
-
-//                 const extraction =
-//                     res.data;
-
-//                 setData(
-//                     extraction
-//                 );
-
-//                 setItems(
-//                     extraction.items ||
-//                     extraction.extraction_items ||
-//                     []
-//                 );
-
-//             })
-
-//             .catch(() => {
-
-//                 toast.error(
-//                     'Failed to load extraction'
-//                 );
-
-//             })
-
-//             .finally(() => {
-
-//                 setLoading(false);
-
-//             });
-
-//     }, [id]);
-
-
-//     // ========================================================
-//     // Edit field
-//     // ========================================================
-
-//     const handleFieldEdit =
-//         async (
-//             fieldPath,
-//             newValue
-//         ) => {
-
-//             try {
-
-//                 await editField(
-//                     id,
-//                     fieldPath,
-//                     newValue
-//                 );
-
-
-//                 toast.success(
-//                     'Field updated'
-//                 );
-
-
-//                 const res =
-//                     await getExtraction(id);
-
-
-//                 setData(
-//                     res.data
-//                 );
-
-
-//                 setItems(
-//                     res.data.items ||
-//                     res.data.extraction_items ||
-//                     []
-//                 );
-
-//             } catch {
-
-//                 toast.error(
-//                     'Failed to update field'
-//                 );
-
-//             }
-//         };
-
-
-//     // ========================================================
-//     // HS confirm
-//     // ========================================================
-
-//     const handleHSConfirm =
-//         async (
-//             itemId,
-//             code
-//         ) => {
-
-//             try {
-
-//                 await confirmHSCode(
-//                     id,
-//                     itemId,
-//                     code
-//                 );
-
-
-//                 toast.success(
-//                     `HS Code ${code} confirmed`
-//                 );
-
-//             } catch {
-
-//                 toast.error(
-//                     'Failed to confirm HS code'
-//                 );
-
-//             }
-//         };
-
-
-//     // ========================================================
-//     // CSV
-//     // ========================================================
-
-//     const handleCSVDownload =
-//         () => {
-
-//             if (!data) {
-//                 return;
-//             }
-
-
-//             const rows = [];
-
-
-//             const json =
-//                 data.extracted_json ||
-//                 data.extractedData ||
-//                 {};
-
-
-//             Object.entries(
-//                 json
-//             ).forEach(
-//                 ([sectionKey, section]) => {
-
-//                     if (
-//                         sectionKey ===
-//                         'overall_confidence'
-//                     ) {
-//                         return;
-//                     }
-
-//                     if (
-//                         sectionKey ===
-//                         'document_type'
-//                     ) {
-//                         return;
-//                     }
-
-
-//                     flattenForCSV(
-//                         section,
-//                         SECTION_TITLES[
-//                         sectionKey
-//                         ] ||
-//                         label(
-//                             sectionKey
-//                         ),
-//                         rows,
-//                         []
-//                     );
-
-//                 }
-//             );
-
-
-//             // ------------------------------------------------
-//             // Line items
-//             // ------------------------------------------------
-
-//             items.forEach(
-//                 (item, index) => {
-
-//                     const itemSection =
-//                         `Line Item ${index + 1}`;
-
-
-//                     Object.entries(
-//                         item
-//                     ).forEach(
-//                         ([key, value]) => {
-
-//                             if (
-//                                 [
-//                                     'id',
-//                                     'extraction_id',
-//                                     'created_at',
-//                                     'updated_at'
-//                                 ].includes(key)
-//                             ) {
-//                                 return;
-//                             }
-
-
-//                             if (
-//                                 value === null ||
-//                                 value === undefined ||
-//                                 value === ''
-//                             ) {
-//                                 return;
-//                             }
-
-
-//                             rows.push({
-
-//                                 section:
-//                                     itemSection,
-
-//                                 field:
-//                                     label(key),
-
-//                                 value:
-//                                     displayValue(
-//                                         getValue(
-//                                             value
-//                                         )
-//                                     ),
-
-//                                 confidence:
-//                                     isFieldObject(
-//                                         value
-//                                     )
-//                                         ? `${(
-//                                             getConfidence(
-//                                                 value
-//                                             ) * 100
-//                                         ).toFixed(1)}%`
-//                                         : ''
-
-//                             });
-
-//                         }
-//                     );
-
-//                 }
-//             );
-
-
-//             const header = [
-//                 'Section',
-//                 'Field',
-//                 'Value',
-//                 'Confidence'
-//             ];
-
-
-//             const escapeCSV =
-//                 value => {
-
-//                     const str =
-//                         String(
-//                             value ??
-//                             ''
-//                         );
-
-//                     return `"${str.replace(
-//                         /"/g,
-//                         '""'
-//                     )}"`;
-
-//                 };
-
-
-//             const csv =
-//                 [
-//                     header,
-//                     ...rows.map(
-//                         row => [
-//                             row.section,
-//                             row.field,
-//                             row.value,
-//                             row.confidence
-//                         ]
-//                     )
-//                 ]
-//                     .map(
-//                         row =>
-//                             row
-//                                 .map(
-//                                     escapeCSV
-//                                 )
-//                                 .join(',')
-//                     )
-//                     .join('\n');
-
-
-//             const blob =
-//                 new Blob(
-//                     [
-//                         '\uFEFF' +
-//                         csv
-//                     ],
-//                     {
-//                         type:
-//                             'text/csv;charset=utf-8;'
-//                     }
-//                 );
-
-
-//             const url =
-//                 URL.createObjectURL(
-//                     blob
-//                 );
-
-
-//             const link =
-//                 document.createElement(
-//                     'a'
-//                 );
-
-
-//             link.href =
-//                 url;
-
-//             link.download =
-//                 `${data.job_number ||
-//                 data.jobNumber ||
-//                 'extraction'
-//                 }.csv`;
-
-
-//             document.body.appendChild(
-//                 link
-//             );
-
-//             link.click();
-
-//             document.body.removeChild(
-//                 link
-//             );
-
-//             URL.revokeObjectURL(
-//                 url
-//             );
-
-
-//             toast.success(
-//                 'CSV downloaded'
-//             );
-//         };
-
-//     const handleExcelDownload = async () => {
-//         try {
-//             await downloadExcel(
-//                 id,
-//                 data.job_number ||
-//                 data.jobNumber
-//             );
-//             toast.success(
-//                 'Excel downloaded'
-//             );
-//         } catch (err) {
-//             toast.error(
-//                 'Failed to download Excel'
-//             );
-//         }
-//     };
-
-
-//     // ========================================================
-//     // Loading
-//     // ========================================================
-
-//     if (loading) {
-
-//         return (
-
-//             <div className="flex min-h-[60vh] items-center justify-center">
-
-//                 <div className="text-center">
-
-//                     <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50">
-
-//                         <Loader2
-//                             size={25}
-//                             className="animate-spin text-blue-900"
-//                         />
-
-//                     </div>
-
-
-//                     <p className="mt-4 text-sm font-bold text-slate-700">
-
-//                         Loading extraction...
-
-//                     </p>
-
-
-//                     <p className="mt-1 text-xs text-slate-400">
-
-//                         Preparing your extracted data
-
-//                     </p>
-
-//                 </div>
-
-//             </div>
-
-//         );
-//     }
-
-
-//     // ========================================================
-//     // Not found
-//     // ========================================================
-
-//     if (!data) {
-
-//         return (
-
-//             <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-
-//                 <AlertTriangle
-//                     size={25}
-//                     className="mx-auto text-red-500"
-//                 />
-
-//                 <h2 className="mt-4 text-lg font-black text-slate-900">
-
-//                     Extraction not found
-
-//                 </h2>
-
-//                 <p className="mt-2 text-sm text-slate-400">
-
-//                     The requested extraction could not be loaded.
-
-//                 </p>
-
-//             </div>
-
-//         );
-//     }
-
-
-//     // ========================================================
-//     // JSON
-//     // ========================================================
-
-//     const json =
-//         data.extracted_json ||
-//         data.extractedData ||
-//         {};
-
-
-//     // ========================================================
-//     // Accuracy
-//     // ========================================================
-
-//     const accuracy =
-//         Number(
-//             data.accuracy_score ??
-//             data.accuracyPercent ??
-//             (
-//                 Number(
-//                     data.accuracy || 0
-//                 ) * 100
-//             )
-//         ) || 0;
-
-
-//     // ========================================================
-//     // Count extracted fields
-//     // ========================================================
-
-//     let extractedFieldCount = 0;
-//     let missingFieldCount = 0;
-
-
-//     Object.entries(
-//         json
-//     ).forEach(
-//         ([key, section]) => {
-
-//             if (
-//                 key === 'overall_confidence' ||
-//                 key === 'document_type'
-//             ) {
-//                 return;
-//             }
-
-
-//             const result =
-//                 collectFields(
-//                     section
-//                 );
-
-
-//             extractedFieldCount +=
-//                 result.extracted.length;
-
-//             missingFieldCount +=
-//                 result.missing.length;
-
-//         }
-//     );
-
-
-//     // ========================================================
-//     // Standard sections
-//     //
-//     // We exclude arrays here because containers and items
-//     // have dedicated UI below.
-//     // ========================================================
-
-//     const standardSections =
-//         Object.entries(
-//             json
-//         ).filter(
-//             ([key, value]) => {
-
-//                 if (
-//                     key ===
-//                     'overall_confidence'
-//                 ) {
-//                     return false;
-//                 }
-
-//                 if (
-//                     key ===
-//                     'document_type'
-//                 ) {
-//                     return false;
-//                 }
-
-//                 if (
-//                     key ===
-//                     'items'
-//                 ) {
-//                     return false;
-//                 }
-
-//                 if (
-//                     key ===
-//                     'line_items'
-//                 ) {
-//                     return false;
-//                 }
-
-//                 if (
-//                     key ===
-//                     'containers'
-//                 ) {
-//                     return false;
-//                 }
-
-//                 if (
-//                     Array.isArray(
-//                         value
-//                     )
-//                 ) {
-//                     return false;
-//                 }
-
-//                 return (
-//                     value &&
-//                     typeof value ===
-//                     'object'
-//                 );
-
-//             }
-//         );
-
-//     const allMissingFields = [];
-//     standardSections.forEach(([sectionKey, section]) => {
-//         const { missing } = collectFields(section);
-//         if (missing.length > 0) {
-//             allMissingFields.push({
-//                 sectionTitle: SECTION_TITLES[sectionKey] || label(sectionKey),
-//                 fields: missing
-//             });
-//         }
-//     });
-
-
-//     return (
-
-//         <div className="space-y-5 pb-10">
-
-
-//             {/* =================================================
-//                 HEADER
-//             ================================================= */}
-
-//             <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-950 via-slate-900 to-blue-900 p-6 shadow-xl sm:p-7">
-
-//                 <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl" />
-
-//                 <div className="absolute -bottom-28 -left-28 h-72 w-72 rounded-full bg-teal-500/10 blur-3xl" />
-
-
-//                 <div className="relative z-10">
-
-
-//                     {/* Top */}
-
-//                     <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-
-//                         <div className="flex items-start gap-4">
-
-//                             <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-teal-400 shadow-lg sm:flex">
-
-//                                 <FileText
-//                                     size={24}
-//                                     className="text-slate-950"
-//                                 />
-
-//                             </div>
-
-
-//                             <div>
-
-//                                 <div className="flex flex-wrap items-center gap-2">
-
-//                                     <h1 className="text-2xl font-black tracking-tight text-white">
-
-//                                         Extraction Results
-
-//                                     </h1>
-
-
-//                                     <span
-//                                         className={`rounded-full px-2.5 py-1 text-[10px] font-black ${data.doc_type ===
-//                                                 'BOE'
-//                                                 ? 'bg-blue-100 text-blue-800'
-//                                                 : 'bg-green-100 text-green-800'
-//                                             }`}
-//                                     >
-
-//                                         {data.doc_type ===
-//                                             'BOE'
-//                                             ? 'BOE — IMPORT'
-//                                             : 'SB — EXPORT'}
-
-//                                     </span>
-
-//                                 </div>
-
-
-//                                 <p className="mt-2 text-sm text-slate-300">
-
-//                                     Review the information extracted
-//                                     from your customs documents.
-
-//                                 </p>
-
-
-//                                 <div className="mt-4 flex flex-wrap items-center gap-3">
-
-//                                     <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5">
-
-//                                         <FileText
-//                                             size={13}
-//                                             className="text-slate-400"
-//                                         />
-
-//                                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-
-//                                             Job
-
-//                                         </span>
-
-
-//                                         <span className="font-mono text-xs font-bold text-white">
-
-//                                             {
-//                                                 data.job_number ||
-//                                                 data.jobNumber ||
-//                                                 '--'
-//                                             }
-
-//                                         </span>
-
-//                                     </div>
-
-
-//                                     <div className="flex items-center gap-2 text-xs text-slate-400">
-
-//                                         <Clock
-//                                             size={13}
-//                                         />
-
-//                                         Extraction #{id}
-
-//                                     </div>
-
-//                                 </div>
-
-//                             </div>
-
-//                         </div>
-
-
-//                         {/* Actions */}
-
-//                         <div className="flex flex-wrap gap-2">
-
-//                             <button
-//                                 onClick={() =>
-//                                     navigate(-1)
-//                                 }
-//                                 className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur transition hover:bg-white/20"
-//                             >
-
-//                                 <ArrowLeft
-//                                     size={15}
-//                                 />
-
-//                                 Back
-
-//                             </button>
-
-
-//                             <button
-//                                 onClick={
-//                                     handleExcelDownload
-//                                 }
-//                                 className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur transition hover:bg-white/20"
-//                             >
-
-//                                 <FileSpreadsheet
-//                                     size={15}
-//                                 />
-
-//                                 Excel
-
-//                             </button>
-
-
-//                             <button
-//                                 onClick={
-//                                     handleCSVDownload
-//                                 }
-//                                 className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur transition hover:bg-white/20"
-//                             >
-
-//                                 <Download
-//                                     size={15}
-//                                 />
-
-//                                 CSV
-
-//                             </button>
-
-//                         </div>
-
-//                     </div>
-
-
-//                     {/* =================================================
-//                         METRICS
-//                     ================================================= */}
-
-//                     <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-4">
-
-
-//                         {/* Accuracy */}
-
-//                         <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-
-//                             <div className="flex items-center gap-2">
-
-//                                 <ShieldCheck
-//                                     size={15}
-//                                     className={
-//                                         accuracy >= 90
-//                                             ? 'text-teal-300'
-//                                             : 'text-yellow-300'
-//                                     }
-//                                 />
-
-//                                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-
-//                                     Accuracy
-
-//                                 </span>
-
-//                             </div>
-
-
-//                             <p className="mt-1 text-lg font-black text-white">
-
-//                                 {accuracy.toFixed(1)}%
-
-//                             </p>
-
-
-//                             <p className="mt-1 text-[9px] text-slate-400">
-
-//                                 Extracted fields only
-
-//                             </p>
-
-//                         </div>
-
-
-//                         {/* Extracted */}
-
-//                         <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-
-//                             <div className="flex items-center gap-2">
-
-//                                 <Database
-//                                     size={15}
-//                                     className="text-blue-300"
-//                                 />
-
-//                                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-
-//                                     Extracted
-
-//                                 </span>
-
-//                             </div>
-
-
-//                             <p className="mt-1 text-lg font-black text-white">
-
-//                                 {
-//                                     extractedFieldCount
-//                                 }
-
-//                             </p>
-
-//                         </div>
-
-
-//                         {/* Missing */}
-
-//                         <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-
-//                             <div className="flex items-center gap-2">
-
-//                                 <AlertTriangle
-//                                     size={15}
-//                                     className="text-orange-300"
-//                                 />
-
-//                                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-
-//                                     Not Found
-
-//                                 </span>
-
-//                             </div>
-
-
-//                             <p className="mt-1 text-lg font-black text-white">
-
-//                                 {
-//                                     missingFieldCount
-//                                 }
-
-//                             </p>
-
-//                         </div>
-
-
-//                         {/* Processing */}
-
-//                         <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-
-//                             <div className="flex items-center gap-2">
-
-//                                 <Clock
-//                                     size={15}
-//                                     className="text-teal-300"
-//                                 />
-
-//                                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-
-//                                     Processing
-
-//                                 </span>
-
-//                             </div>
-
-
-//                             <p className="mt-1 text-lg font-black text-white">
-
-//                                 {(
-//                                     (
-//                                         data.extraction_time_ms ||
-//                                         data.extractionTimeMs ||
-//                                         0
-//                                     ) / 1000
-//                                 ).toFixed(1)}s
-
-//                             </p>
-
-//                         </div>
-
-//                     </div>
-
-//                 </div>
-
-//             </div>
-
-//             {/* ======================================================
-//                     HS VERIFICATION NOTICE
-//                 ====================================================== */}
-
-//             <div className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50">
-
-//                 <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-
-//                     <div className="flex items-start gap-3">
-
-//                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
-
-//                             <ShieldAlert
-//                                 size={19}
-//                                 className="text-amber-700"
-//                             />
-
-//                         </div>
-
-
-//                         <div>
-
-//                             <h3 className="text-sm font-black text-amber-950">
-//                                 HS / CTH codes require verification
-//                             </h3>
-
-
-//                             <p className="mt-1 max-w-3xl text-xs leading-5 text-amber-900/70">
-
-//                                 HS codes shown below are the values extracted by AI
-//                                 from your documents. They are not automatically replaced
-//                                 or modified using the tariff database. For filing,
-//                                 verify the classification and applicable tariff details
-//                                 using the HS Code Lookup and official Indian Customs
-//                                 sources.
-
-//                             </p>
-
-//                         </div>
-
-//                     </div>
-
-
-//                     <div className="flex shrink-0 flex-wrap gap-2">
-
-//                         <button
-//                             onClick={() =>
-//                                 navigate(
-//                                     HS_LOOKUP_PATH
-//                                 )
-//                             }
-//                             className="inline-flex items-center gap-2 rounded-xl bg-blue-950 px-4 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-blue-900"
-//                         >
-
-//                             <Search size={14} />
-
-//                             HS Code Lookup
-
-//                         </button>
-
-
-//                         <a
-//                             href={ICEGATE_TRADE_GUIDE}
-//                             target="_blank"
-//                             rel="noopener noreferrer"
-//                             className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-xs font-black text-amber-900 transition hover:bg-amber-100"
-//                         >
-
-//                             ICEGATE
-
-//                             <ExternalLink size={13} />
-
-//                         </a>
-
-
-//                         <a
-//                             href={CBIC_TARIFF}
-//                             target="_blank"
-//                             rel="noopener noreferrer"
-//                             className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-xs font-black text-amber-900 transition hover:bg-amber-100"
-//                         >
-
-//                             CBIC Tariff
-
-//                             <ExternalLink size={13} />
-
-//                         </a>
-
-//                     </div>
-
-//                 </div>
-
-//             </div>
-
-
-
-
-
-//             {/* =================================================
-//                 EXTRACTION REVIEW LEGEND
-//                 ================================================= */}
-
-//             <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-//                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-//                     <div className="flex items-center gap-2">
-//                         <span className="text-xs font-black text-slate-800">
-//                             Extraction Status
-//                         </span>
-//                     </div>
-
-//                     <div className="flex flex-wrap items-center gap-4">
-
-//                         <span className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
-//                             <ConfidenceBadge score={0.95} />
-//                             High 90%+
-//                         </span>
-
-//                         <span className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
-//                             <ConfidenceBadge score={0.75} />
-//                             Review 70–89%
-//                         </span>
-
-//                         <span className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
-//                             <ConfidenceBadge score={0.5} />
-//                             Verify  &lt;70%
-//                         </span>
-
-//                     </div>
-//                 </div>
-//             </div>
-
-
-//             {/* =================================================
-//                 EXTRACTED INFORMATION
-//             ================================================= */}
-
-//             <div>
-
-//                 <h2 className="text-lg font-black tracking-tight text-slate-900">
-
-//                     Extracted Information
-
-//                 </h2>
-
-
-//                 <p className="mt-1 text-xs text-slate-400">
-
-//                     Only information actually found in the uploaded
-//                     documents is displayed as extracted.
-
-//                 </p>
-
-//             </div>
-
-
-//             {/* =================================================
-//                 STANDARD SECTIONS
-//             ================================================= */}
-
-//             <div className="space-y-4">
-
-//                 {standardSections.map(
-//                     ([sectionKey, section], index) => (
-
-//                         <DynamicSection
-//                             key={
-//                                 sectionKey
-//                             }
-
-//                             sectionKey={
-//                                 sectionKey
-//                             }
-
-//                             section={
-//                                 section
-//                             }
-
-//                             number={
-//                                 index + 1
-//                             }
-
-//                             onEdit={
-//                                 handleFieldEdit
-//                             }
-//                         />
-
-//                     )
-//                 )}
-
-//             </div>
-
-
-//             {/* =================================================
-//                 CONTAINERS
-//             ================================================= */}
-
-//             {Array.isArray(
-//                 json.containers
-//             ) &&
-//                 json.containers.length > 0 && (
-
-//                     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-
-//                         <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
-
-//                             <div className="flex items-center gap-3">
-
-//                                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100">
-
-//                                     <Package
-//                                         size={15}
-//                                         className="text-blue-800"
-//                                     />
-
-//                                 </div>
-
-
-//                                 <div>
-
-//                                     <h2 className="text-sm font-black text-slate-900">
-
-//                                         Container Details
-
-//                                     </h2>
-
-
-//                                     <p className="mt-0.5 text-[10px] text-slate-400">
-
-//                                         {
-//                                             json.containers.length
-//                                         } container
-//                                         {json.containers.length !== 1 &&
-//                                             's'}
-
-//                                     </p>
-
-//                                 </div>
-
-//                             </div>
-
-//                         </div>
-
-
-//                         <div className="space-y-3 p-4">
-
-//                             {json.containers.map(
-//                                 (container, index) => {
-
-//                                     const result =
-//                                         collectFields(
-//                                             container
-//                                         );
-
-
-//                                     return (
-
-//                                         <div
-//                                             key={
-//                                                 index
-//                                             }
-//                                             className="overflow-hidden rounded-xl border border-slate-200"
-//                                         >
-
-//                                             <div className="bg-slate-50 px-4 py-3">
-
-//                                                 <span className="text-xs font-black text-slate-800">
-
-//                                                     Container {
-//                                                         index + 1
-//                                                     }
-
-//                                                 </span>
-
-//                                             </div>
-
-
-//                                             {result.extracted.length > 0 && (
-
-//                                                 <div className="divide-y divide-slate-100">
-
-//                                                     {result.extracted.map(
-//                                                         field => (
-
-//                                                             <FieldRow
-//                                                                 key={
-//                                                                     field.key
-//                                                                 }
-//                                                                 label={
-//                                                                     field.label
-//                                                                 }
-//                                                                 value={
-//                                                                     displayValue(
-//                                                                         field.value
-//                                                                     )
-//                                                                 }
-//                                                                 confidence={
-//                                                                     field.confidence
-//                                                                 }
-//                                                             />
-
-//                                                         )
-//                                                     )}
-
-//                                                 </div>
-
-//                                             )}
-
-
-//                                             {result.missing.length > 0 && (
-
-//                                                 <div className="border-t border-orange-100 bg-orange-50/40 px-4 py-3">
-
-//                                                     <p className="text-[10px] font-black text-orange-800">
-
-//                                                         Not extracted:
-
-//                                                     </p>
-
-
-//                                                     <p className="mt-1 text-[10px] text-slate-500">
-
-//                                                         {
-//                                                             result.missing
-//                                                                 .map(
-//                                                                     f =>
-//                                                                         f.label
-//                                                                 )
-//                                                                 .join(
-//                                                                     ', '
-//                                                                 )
-//                                                         }
-
-//                                                     </p>
-
-//                                                 </div>
-
-//                                             )}
-
-//                                         </div>
-
-//                                     );
-
-//                                 }
-//                             )}
-
-//                         </div>
-
-//                     </section>
-
-//                 )}
-
-
-//             {/* =================================================
-//                 LINE ITEMS
-//             ================================================= */}
-
-//             {items.length > 0 && (
-
-//                 <section className="overflow-hidden rounded-2xl border-2 border-blue-200 bg-white shadow-sm">
-
-//                     <div className="border-b border-blue-200 bg-gradient-to-r from-blue-50 to-teal-50 px-5 py-4">
-
-//                         <div className="flex items-start gap-3">
-
-//                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-900">
-
-//                                 <Package
-//                                     size={17}
-//                                     className="text-white"
-//                                 />
-
-//                             </div>
-
-
-//                             <div>
-
-//                                 <div className="flex flex-wrap items-center gap-2">
-
-//                                     <span className="rounded-md bg-blue-900 px-2 py-1 text-[10px] font-black text-white">
-
-//                                         LINE ITEMS
-
-//                                     </span>
-
-
-//                                     <h2 className="text-sm font-black text-blue-950">
-
-//                                         Product Details
-
-//                                     </h2>
-
-
-//                                     <span className="rounded-md border border-blue-200 bg-white px-2 py-1 text-[10px] font-bold text-blue-700">
-
-//                                         {items.length} item
-//                                         {items.length !== 1 &&
-//                                             's'}
-
-//                                     </span>
-
-//                                 </div>
-
-
-//                                 <p className="mt-1 text-[11px] text-slate-500">
-
-//                                     Review product descriptions,
-//                                     quantities, values and HS codes.
-
-//                                 </p>
-
-//                             </div>
-
-//                         </div>
-
-//                     </div>
-
-
-//                     <div>
-
-//                         {items.map(
-//                             (item, index) => {
-
-//                                 const description =
-//                                     getValue(
-//                                         item.item_description ||
-//                                         item.description
-//                                     );
-
-
-//                                 const hsCode =
-//                                     getValue(
-//                                         item.hs_code
-//                                     );
-
-
-//                                 return (
-
-//                                     <div
-//                                         key={
-//                                             item.id ||
-//                                             index
-//                                         }
-//                                         className="border-b border-slate-200 last:border-0"
-//                                     >
-
-//                                         {/* Item header */}
-
-//                                         <div className="flex items-center justify-between bg-slate-50 px-5 py-3">
-
-//                                             <div className="flex items-center gap-3">
-
-//                                                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[10px] font-black text-blue-900">
-
-//                                                     {String(
-//                                                         index + 1
-//                                                     ).padStart(
-//                                                         2,
-//                                                         '0'
-//                                                     )}
-
-//                                                 </span>
-
-
-//                                                 <span className="text-xs font-black text-slate-700">
-
-//                                                     Item {
-//                                                         index + 1
-//                                                     }
-
-//                                                 </span>
-
-//                                             </div>
-
-
-//                                             <ConfidenceBadge
-//                                                 score={
-//                                                     getConfidence(
-//                                                         item.confidence_score
-//                                                     ) ||
-//                                                     Number(
-//                                                         item.confidence_score
-//                                                     ) ||
-//                                                     0
-//                                                 }
-//                                                 showLabel
-//                                             />
-
-//                                         </div>
-
-
-//                                         {/* Fields */}
-
-//                                         <div className="divide-y divide-slate-100">
-
-
-//                                             {hasValue(
-//                                                 description
-//                                             ) && (
-
-//                                                     <FieldRow
-//                                                         label="Description"
-//                                                         value={
-//                                                             displayValue(
-//                                                                 description
-//                                                             )
-//                                                         }
-//                                                         confidence={
-//                                                             getConfidence(
-//                                                                 item.item_description ||
-//                                                                 item.description
-//                                                             ) ||
-//                                                             0.95
-//                                                         }
-//                                                     />
-
-//                                                 )}
-
-
-//                                             {/* HS CODE */}
-
-//                                             {hasValue(
-//                                                 hsCode
-//                                             ) && (
-
-//                                                     <div className="border-b border-slate-100">
-
-//                                                         <FieldRow
-//                                                             label="HS Code"
-//                                                             value={
-//                                                                 displayValue(
-//                                                                     hsCode
-//                                                                 )
-//                                                             }
-//                                                             confidence={
-//                                                                 getConfidence(
-//                                                                     item.hs_code
-//                                                                 ) ||
-//                                                                 Number(
-//                                                                     item.confidence_score
-//                                                                 ) ||
-//                                                                 0
-//                                                             }
-//                                                         />
-
-
-//                                                         {/* HS verification notice */}
-
-//                                                         <div className="mx-5 mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
-
-//                                                             <div className="flex items-start gap-3">
-
-//                                                                 <Search
-//                                                                     size={17}
-//                                                                     className="mt-0.5 shrink-0 text-blue-700"
-//                                                                 />
-
-
-//                                                                 <div className="flex-1">
-
-//                                                                     <p className="text-xs font-black text-blue-950">
-
-//                                                                         Verify this HS Code
-
-//                                                                     </p>
-
-
-//                                                                     <p className="mt-1 text-[11px] leading-5 text-slate-600">
-
-//                                                                         The HS Code shown above
-//                                                                         was extracted from your
-//                                                                         document. It has not been
-//                                                                         automatically classified by
-//                                                                         the system.
-
-//                                                                         Verify the code and product
-//                                                                         description using the HS Code
-//                                                                         Lookup before final submission.
-
-//                                                                     </p>
-
-
-//                                                                     <div className="mt-3 flex flex-wrap gap-2">
-
-//                                                                         <button
-//                                                                             type="button"
-//                                                                             onClick={() =>
-//                                                                                 navigate(
-//                                                                                     '/hs-lookup'
-//                                                                                 )
-//                                                                             }
-//                                                                             className="flex items-center gap-2 rounded-lg bg-blue-900 px-3 py-2 text-[10px] font-black text-white transition hover:bg-blue-800"
-//                                                                         >
-
-//                                                                             <Search
-//                                                                                 size={13}
-//                                                                             />
-
-//                                                                             Open HS Code Lookup
-
-//                                                                         </button>
-
-
-//                                                                         <a
-//                                                                             href={ICEGATE_TRADE_GUIDE}
-//                                                                             target="_blank"
-//                                                                             rel="noopener noreferrer"
-//                                                                             className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-black text-slate-700 transition hover:bg-slate-50"
-//                                                                         >
-
-//                                                                             <ExternalLink
-//                                                                                 size={13}
-//                                                                             />
-
-//                                                                             Verify on ICEGATE
-
-//                                                                         </a>
-
-//                                                                     </div>
-
-//                                                                 </div>
-
-//                                                             </div>
-
-//                                                         </div>
-
-//                                                     </div>
-
-//                                                 )}
-
-
-//                                             {[
-//                                                 [
-//                                                     'Quantity',
-//                                                     item.quantity
-//                                                 ],
-
-//                                                 [
-//                                                     'Unit',
-//                                                     item.unit
-//                                                 ],
-
-//                                                 [
-//                                                     'Unit Price',
-//                                                     item.unit_price
-//                                                 ],
-
-//                                                 [
-//                                                     'Total Value',
-//                                                     item.total_value
-//                                                 ]
-
-//                                             ].map(
-//                                                 ([fieldLabel, fieldValue]) => {
-
-//                                                     if (
-//                                                         !hasValue(
-//                                                             getValue(
-//                                                                 fieldValue
-//                                                             )
-//                                                         )
-//                                                     ) {
-//                                                         return null;
-//                                                     }
-
-
-//                                                     return (
-
-//                                                         <FieldRow
-//                                                             key={
-//                                                                 fieldLabel
-//                                                             }
-//                                                             label={
-//                                                                 fieldLabel
-//                                                             }
-//                                                             value={
-//                                                                 displayValue(
-//                                                                     getValue(
-//                                                                         fieldValue
-//                                                                     )
-//                                                                 )
-//                                                             }
-//                                                             confidence={
-//                                                                 getConfidence(
-//                                                                     fieldValue
-//                                                                 ) ||
-//                                                                 0.95
-//                                                             }
-//                                                         />
-
-//                                                     );
-
-//                                                 }
-//                                             )}
-
-//                                         </div>
-
-
-//                                         {/* AI suggestions */}
-
-//                                         {Array.isArray(
-//                                             item.ai_suggested_hs
-//                                         ) &&
-//                                             item.ai_suggested_hs.length > 0 && (
-
-//                                                 <div className="border-t border-blue-100 bg-blue-50/40">
-
-//                                                     <HSCodeSuggestion
-//                                                         suggestions={
-//                                                             item.ai_suggested_hs
-//                                                         }
-//                                                         itemId={
-//                                                             item.id
-//                                                         }
-//                                                         onConfirm={
-//                                                             handleHSConfirm
-//                                                         }
-//                                                     />
-
-//                                                 </div>
-
-//                                             )}
-
-//                                     </div>
-
-//                                 );
-
-//                             }
-//                         )}
-
-//                     </div>
-
-//                 </section>
-
-//             )}
-
-
-//             {/* =================================================
-//                 NO ITEMS
-//             ================================================= */}
-
-//             {items.length === 0 && (
-
-//                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-
-//                     <div className="flex items-center gap-3">
-
-//                         <Package
-//                             size={18}
-//                             className="text-slate-400"
-//                         />
-
-//                         <div>
-
-//                             <p className="text-xs font-black text-slate-700">
-
-//                                 No line items extracted
-
-//                             </p>
-
-//                             <p className="mt-1 text-[10px] text-slate-400">
-
-//                                 No product line-item data was returned
-//                                 by the extraction engine.
-
-//                             </p>
-
-//                         </div>
-
-//                     </div>
-
-//                 </div>
-
-//             )}
-
-
-//             {/* =================================================
-//                 FINAL SUMMARY
-//             ================================================= */}
-
-//             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-
-//                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
-//                     <div className="flex items-center gap-3">
-
-//                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
-
-//                             <CheckCircle2
-//                                 size={19}
-//                                 className="text-green-600"
-//                             />
-
-//                         </div>
-
-
-//                         <div>
-
-//                             <p className="text-sm font-black text-slate-800">
-
-//                                 Extraction Complete
-
-//                             </p>
-
-
-//                             <p className="mt-0.5 text-xs text-slate-400">
-
-//                                 {
-//                                     extractedFieldCount
-//                                 } fields extracted from{' '}
-
-//                                 {
-//                                     data.doc_type ||
-//                                     json.document_type ||
-//                                     'document'
-//                                 }
-
-//                             </p>
-
-//                         </div>
-
-//                     </div>
-
-
-//                     <div className="flex items-center gap-5">
-
-//                         <div className="text-right">
-
-//                             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-
-//                                 Processing Time
-
-//                             </p>
-
-
-//                             <p className="mt-0.5 text-sm font-black text-slate-800">
-
-//                                 {(
-//                                     (
-//                                         data.extraction_time_ms ||
-//                                         data.extractionTimeMs ||
-//                                         0
-//                                     ) / 1000
-//                                 ).toFixed(1)}s
-
-//                             </p>
-
-//                         </div>
-
-
-//                         <div className="h-8 w-px bg-slate-200" />
-
-
-//                         <div className="text-right">
-
-//                             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-
-//                                 Accuracy
-
-//                             </p>
-
-
-//                             <p
-//                                 className={`mt-0.5 text-sm font-black ${accuracy >= 90
-//                                         ? 'text-green-700'
-//                                         : accuracy >= 70
-//                                             ? 'text-yellow-700'
-//                                             : 'text-red-700'
-//                                     }`}
-//                             >
-
-//                                 {accuracy.toFixed(1)}%
-
-//                             </p>
-
-//                         </div>
-
-//                     </div>
-
-//                 </div>
-
-//             </div>
-
-
-//             {/* =================================================
-//                 MISSING FIELD EXPLANATION
-//             ================================================= */}
-
-//             {missingFieldCount > 0 && (
-
-//                 <div className="rounded-2xl border border-orange-200 bg-orange-50/60 p-5">
-
-//                     <div className="flex items-start gap-3">
-
-//                         <AlertTriangle
-//                             size={18}
-//                             className="mt-0.5 shrink-0 text-orange-600"
-//                         />
-
-
-//                         <div className="w-full">
-
-//                             <p className="text-xs font-black text-orange-900">
-
-//                                 {missingFieldCount} fields were not extracted
-
-//                             </p>
-
-
-//                             <p className="mt-1 text-[11px] leading-5 text-slate-600">
-
-//                                 These fields were not found in the
-//                                 uploaded documents. They are listed below by section:
-
-//                             </p>
-
-//                             <div className="mt-4 space-y-3">
-//                                 {allMissingFields.map((group) => (
-//                                     <div key={group.sectionTitle} className="border-t border-orange-200/40 pt-3 first:border-0 first:pt-0">
-//                                         <p className="text-[10px] font-bold text-orange-850 uppercase tracking-wider mb-2">
-//                                             {group.sectionTitle}
-//                                         </p>
-//                                         <div className="flex flex-wrap gap-1.5">
-//                                             {group.fields.map((field) => (
-//                                                 <span
-//                                                     key={field.key}
-//                                                     className="rounded bg-white border border-orange-200/70 px-2 py-1 text-[9px] font-medium text-slate-500"
-//                                                 >
-//                                                     {field.label}
-//                                                 </span>
-//                                             ))}
-//                                         </div>
-//                                     </div>
-//                                 ))}
-//                             </div>
-
-//                         </div>
-
-//                     </div>
-
-//                 </div>
-
-//             )}
-
-//         </div>
-
-//     );
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import {
-    getExtraction,
-    editField,
-    downloadExcel,
-    downloadCSV,
-    confirmHSCode,
+  getExtraction,
+  editField,
+  downloadExcel,
+  confirmHSCode,
 } from '../api';
 
 import FieldRow from '../components/FieldRow.jsx';
@@ -2534,13 +14,24 @@ import ConfidenceBadge from '../components/ConfidenceBadge.jsx';
 import AsciiResultView from '../components/AsciiResultView.jsx';
 
 import {
-    Loader2, Download, FileSpreadsheet, FileText, ArrowLeft,
-    ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2,
-    Clock, Database, Package, ExternalLink, Search,
+  Loader2,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  ArrowLeft,
+  ShieldCheck,
+  ShieldAlert,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Database,
+  Package,
+  ExternalLink,
+  Search,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-// LINKS
+// Official External Links
 const HS_LOOKUP_PATH = '/hs-lookup';
 const ICEGATE_TRADE_GUIDE = 'https://www.icegate.gov.in/Webappl/Trade-Guide-on-Imports';
 const CBIC_TARIFF = 'https://www.cbic.gov.in/entities/customs-tariff';
@@ -2550,70 +41,68 @@ const CBIC_TARIFF = 'https://www.cbic.gov.in/entities/customs-tariff';
 // ============================================================
 
 const getValue = (field) => {
-    if (field && typeof field === 'object' && Object.prototype.hasOwnProperty.call(field, 'value')) {
-        return field.value;
-    }
-    return field ?? null;
+  if (field && typeof field === 'object' && Object.prototype.hasOwnProperty.call(field, 'value')) {
+    return field.value;
+  }
+  return field ?? null;
 };
 
 const getConfidence = (field) => {
-    if (field && typeof field === 'object' && Object.prototype.hasOwnProperty.call(field, 'confidence')) {
-        const score = Number(field.confidence);
-        if (!Number.isNaN(score)) {
-            return Math.max(0, Math.min(1, score));
-        }
+  if (field && typeof field === 'object' && Object.prototype.hasOwnProperty.call(field, 'confidence')) {
+    const score = Number(field.confidence);
+    if (!Number.isNaN(score)) {
+      return Math.max(0, Math.min(1, score));
     }
-    return 0;
+  }
+  return 0;
 };
 
 const hasValue = (value) => {
-    if (value === null || value === undefined) return false;
-    if (typeof value === 'string') return value.trim().length > 0;
-    if (Array.isArray(value)) return value.length > 0;
-    return true;
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  return true;
 };
 
 const isFieldObject = (value) => {
-    return (
-        value && typeof value === 'object' && !Array.isArray(value) &&
-        Object.prototype.hasOwnProperty.call(value, 'value') &&
-        Object.prototype.hasOwnProperty.call(value, 'confidence')
-    );
+  return (
+    value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Object.prototype.hasOwnProperty.call(value, 'value') &&
+    Object.prototype.hasOwnProperty.call(value, 'confidence')
+  );
 };
 
 const label = (key) => {
-    if (!key) return '';
-    return String(key)
-        .replace(/_/g, ' ')
-        .replace(/([A-Z])/g, ' $1')
-        .replace(/\s+/g, ' ')
-        .replace(/^./, c => c.toUpperCase())
-        .trim();
+  if (!key) return '';
+  return String(key)
+    .replace(/_/g, ' ')
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/\s+/g, ' ')
+    .replace(/^./, (c) => c.toUpperCase())
+    .trim();
 };
 
-// ============================================================
-// Section names
-// ============================================================
-
 const SECTION_TITLES = {
-    job: 'Job / File Header',
-    importer_exporter: 'Importer / Exporter',
-    foreign_party: 'Foreign Party',
-    consignee: 'Consignee / Buyer',
-    shipment: 'Shipment / Vessel',
-    containers: 'Container Details',
-    invoice: 'Invoice & Value',
-    items: 'Line Items',
-    packing: 'Packing Details',
-    duty: 'Duty & Tax',
-    scheme: 'Scheme Details',
-    drawback: 'Drawback',
-    rodtep: 'RoDTEP',
-    esanchit: 'e-Sanchit',
-    declarations: 'Declarations',
-    licences: 'Licences',
-    certificate: 'Certificate Information',
-    additional: 'Additional Information',
+  job: 'Job / File Header',
+  importer_exporter: 'Importer / Exporter',
+  foreign_party: 'Foreign Party',
+  consignee: 'Consignee / Buyer',
+  shipment: 'Shipment / Vessel',
+  containers: 'Container Details',
+  invoice: 'Invoice & Value',
+  items: 'Line Items',
+  packing: 'Packing Details',
+  duty: 'Duty & Tax',
+  scheme: 'Scheme Details',
+  drawback: 'Drawback',
+  rodtep: 'RoDTEP',
+  esanchit: 'e-Sanchit',
+  declarations: 'Declarations',
+  licences: 'Licences',
+  certificate: 'Certificate Information',
+  additional: 'Additional Information',
 };
 
 // ============================================================
@@ -2621,722 +110,925 @@ const SECTION_TITLES = {
 // ============================================================
 
 function collectFields(section) {
-    const extracted = [];
-    const missing = [];
+  const extracted = [];
+  const missing = [];
 
-    function walk(node, path = []) {
-        if (node === null || node === undefined) return;
-        if (Array.isArray(node)) return;
-
-        if (isFieldObject(node)) {
-            const value = getValue(node);
-            const field = {
-                key: path.join('.'),
-                label: label(path[path.length - 1]),
-                value: value,
-                confidence: getConfidence(node)
-            };
-
-            if (hasValue(value)) extracted.push(field);
-            else missing.push(field);
-            return;
-        }
-
-        if (typeof node === 'object') {
-            for (const [key, value] of Object.entries(node)) {
-                walk(value, [...path, key]);
-            }
-            return;
-        }
-
-        const field = {
-            key: path.join('.'),
-            label: label(path[path.length - 1]),
-            value: node,
-            confidence: 1
-        };
-
-        if (hasValue(node)) extracted.push(field);
-        else missing.push(field);
-    }
-
-    walk(section);
-
-    return { extracted, missing };
-}
-
-function displayValue(value) {
-    if (value === null || value === undefined) return '';
-    if (typeof value === 'object') {
-        try { return JSON.stringify(value, null, 2); }
-        catch { return String(value); }
-    }
-    return String(value);
-}
-
-// ============================================================
-// Build CSV
-// ============================================================
-
-function flattenForCSV(node, sectionName, rows, path = []) {
+  function walk(node, path = []) {
     if (node === null || node === undefined) return;
+    if (Array.isArray(node)) return;
 
-    if (Array.isArray(node)) {
-        node.forEach((item, index) => {
-            flattenForCSV(item, sectionName, rows, [...path, String(index + 1)]);
-        });
-        return;
+    if (isFieldObject(node)) {
+      const value = getValue(node);
+      const field = {
+        key: path.join('.'),
+        label: label(path[path.length - 1]),
+        value: value,
+        confidence: getConfidence(node),
+      };
+
+      if (hasValue(value)) extracted.push(field);
+      else missing.push(field);
+      return;
     }
 
     if (typeof node === 'object') {
-        if (isFieldObject(node)) {
-            const value = getValue(node);
-            if (hasValue(value)) {
-                rows.push({
-                    section: sectionName,
-                    field: path.map(label).join(' → '),
-                    value: displayValue(value),
-                    confidence: `${(getConfidence(node) * 100).toFixed(1)}%`
-                });
-            }
-            return;
-        }
-
-        Object.entries(node).forEach(([key, value]) => {
-            flattenForCSV(value, sectionName, rows, [...path, key]);
-        });
-        return;
+      for (const [key, value] of Object.entries(node)) {
+        walk(value, [...path, key]);
+      }
+      return;
     }
 
-    if (hasValue(node)) {
-        rows.push({
-            section: sectionName,
-            field: path.map(label).join(' → '),
-            value: displayValue(node),
-            confidence: '100%'
-        });
+    const field = {
+      key: path.join('.'),
+      label: label(path[path.length - 1]),
+      value: node,
+      confidence: 1,
+    };
+
+    if (hasValue(node)) extracted.push(field);
+    else missing.push(field);
+  }
+
+  walk(section);
+
+  return { extracted, missing };
+}
+
+function displayValue(value) {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
     }
+  }
+  return String(value);
 }
 
 // ============================================================
-// Section Card
+// Build CSV export
+// ============================================================
+
+function flattenForCSV(node, sectionName, rows, path = []) {
+  if (node === null || node === undefined) return;
+
+  if (Array.isArray(node)) {
+    node.forEach((item, index) => {
+      flattenForCSV(item, sectionName, rows, [...path, String(index + 1)]);
+    });
+    return;
+  }
+
+  if (typeof node === 'object') {
+    if (isFieldObject(node)) {
+      const value = getValue(node);
+      if (hasValue(value)) {
+        rows.push({
+          section: sectionName,
+          field: path.map(label).join(' → '),
+          value: displayValue(value),
+          confidence: `${(getConfidence(node) * 100).toFixed(1)}%`,
+        });
+      }
+      return;
+    }
+
+    Object.entries(node).forEach(([key, value]) => {
+      flattenForCSV(value, sectionName, rows, [...path, key]);
+    });
+    return;
+  }
+
+  if (hasValue(node)) {
+    rows.push({
+      section: sectionName,
+      field: path.map(label).join(' → '),
+      value: displayValue(node),
+      confidence: '100%',
+    });
+  }
+}
+
+// ============================================================
+// Dynamic Section Card (Apple HIG)
 // ============================================================
 
 function DynamicSection({ sectionKey, section, number, onEdit }) {
-    const { extracted, missing } = useMemo(() => collectFields(section), [section]);
+  const { extracted } = useMemo(() => collectFields(section), [section]);
 
-    if (extracted.length === 0) return null;
+  if (extracted.length === 0) return null;
 
-    return (
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-900 text-xs font-black text-white">
-                            {number}
-                        </div>
-                        <div>
-                            <h2 className="text-sm font-black text-slate-900">
-                                {SECTION_TITLES[sectionKey] || label(sectionKey)}
-                            </h2>
-                            <p className="mt-0.5 text-[10px] text-slate-400">
-                                {extracted.length} extracted
-                            </p>
-                        </div>
-                    </div>
-                </div>
+  return (
+    <section className="overflow-hidden rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+      {/* Section Header */}
+      <div className="border-b border-[rgba(60,60,67,0.1)] bg-white px-6 py-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-white border border-[rgba(60,60,67,0.18)] text-xs font-bold text-[#1c1c1e] shadow-2xs">
+              {number}
             </div>
+            <div>
+              <h2 className="text-sm font-bold text-[#1c1c1e] tracking-tight">
+                {SECTION_TITLES[sectionKey] || label(sectionKey)}
+              </h2>
+              <p className="text-[11px] text-[#48484a]">
+                {extracted.length} field{extracted.length !== 1 && 's'} extracted
+              </p>
+            </div>
+          </div>
 
-            {extracted.length > 0 && (
-                <div className="divide-y divide-slate-100">
-                    {extracted.map(field => (
-                        <FieldRow
-                            key={field.key}
-                            label={field.label}
-                            value={displayValue(field.value)}
-                            confidence={field.confidence}
-                            fieldKey={sectionKey ? `${sectionKey}.${field.key}` : field.key}
-                            onEdit={onEdit}
-                        />
-                    ))}
-                </div>
-            )}
-        </section>
-    );
+          <span className="self-start sm:self-center text-[10px] font-semibold text-[#48484a] bg-white border border-[rgba(60,60,67,0.15)] px-2.5 py-0.5 rounded-full">
+            {extracted.length} POPULATED
+          </span>
+        </div>
+      </div>
+
+      {/* Field Rows */}
+      <div className="divide-y divide-[rgba(60,60,67,0.06)]">
+        {extracted.map((field) => (
+          <FieldRow
+            key={field.key}
+            label={field.label}
+            value={displayValue(field.value)}
+            confidence={field.confidence}
+            fieldKey={sectionKey ? `${sectionKey}.${field.key}` : field.key}
+            onEdit={onEdit}
+          />
+        ))}
+      </div>
+    </section>
+  );
 }
 
 // ============================================================
-// Results Component
+// Main Results Page
 // ============================================================
 
 export default function Results() {
-    const { id } = useParams();
-    const navigate = useNavigate();
+  const { id } = useParams();
+  const navigate = useNavigate();
 
-    const [data, setData] = useState(null);
-    const [items, setItems] = useState([]);
-    const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(null);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-    // ========================================================
-    // Load extraction
-    // ========================================================
-    useEffect(() => {
-        getExtraction(id)
-            .then(res => {
-                const extraction = res.data;
-                setData(extraction);
-                setItems(extraction.items || extraction.extraction_items || []);
-            })
-            .catch(() => toast.error('Failed to load extraction'))
-            .finally(() => setLoading(false));
-    }, [id]);
+  // Load extraction
+  useEffect(() => {
+    getExtraction(id)
+      .then((res) => {
+        const extraction = res.data;
+        setData(extraction);
+        setItems(extraction.items || extraction.extraction_items || []);
+      })
+      .catch(() => toast.error('Failed to load extraction'))
+      .finally(() => setLoading(false));
+  }, [id]);
 
-    // ========================================================
-    // Derived Calculations (Memoized for high performance)
-    // ========================================================
-    const {
-        json,
-        accuracy,
-        extractedFieldCount,
-        missingFieldCount,
-        standardSections,
-        allMissingFields
-    } = useMemo(() => {
-        if (!data) {
-            return { json: {}, accuracy: 0, extractedFieldCount: 0, missingFieldCount: 0, standardSections: [], allMissingFields: [] };
-        }
-
-        const jsonVal = data.extracted_json || data.extractedData || {};
-        const acc = Number(data.accuracy_score ?? data.accuracyPercent ?? (Number(data.accuracy || 0) * 100)) || 0;
-
-        let extCount = 0;
-        let missCount = 0;
-        const sections = [];
-        const missingGroups = [];
-
-        Object.entries(jsonVal).forEach(([key, section]) => {
-            if (key === 'overall_confidence' || key === 'document_type') return;
-
-            const result = collectFields(section);
-            extCount += result.extracted.length;
-            missCount += result.missing.length;
-
-            // Collect standard sections (ignoring items and arrays)
-            if (key !== 'items' && key !== 'line_items' && key !== 'containers' && !Array.isArray(section) && section && typeof section === 'object') {
-                sections.push([key, section]);
-                if (result.missing.length > 0) {
-                    missingGroups.push({
-                        sectionTitle: SECTION_TITLES[key] || label(key),
-                        fields: result.missing
-                    });
-                }
-            }
-        });
-
-        return {
-            json: jsonVal,
-            accuracy: acc,
-            extractedFieldCount: extCount,
-            missingFieldCount: missCount,
-            standardSections: sections,
-            allMissingFields: missingGroups
-        };
-    }, [data]);
-
-    // ========================================================
-    // Event Handlers (Memoized)
-    // ========================================================
-    const handleFieldEdit = useCallback(async (fieldPath, newValue) => {
-        try {
-            await editField(id, fieldPath, newValue);
-            toast.success('Field updated');
-            const res = await getExtraction(id);
-            setData(res.data);
-            setItems(res.data.items || res.data.extraction_items || []);
-        } catch {
-            toast.error('Failed to update field');
-        }
-    }, [id]);
-
-    const handleHSConfirm = useCallback(async (itemId, code) => {
-        try {
-            await confirmHSCode(id, itemId, code);
-            toast.success(`HS Code ${code} confirmed`);
-        } catch {
-            toast.error('Failed to confirm HS code');
-        }
-    }, [id]);
-
-    const handleCSVDownload = useCallback(() => {
-        if (!data) return;
-        const rows = [];
-        const jsonVal = data.extracted_json || data.extractedData || {};
-
-        Object.entries(jsonVal).forEach(([sectionKey, section]) => {
-            if (sectionKey === 'overall_confidence' || sectionKey === 'document_type') return;
-            flattenForCSV(section, SECTION_TITLES[sectionKey] || label(sectionKey), rows, []);
-        });
-
-        items.forEach((item, index) => {
-            const itemSection = `Line Item ${index + 1}`;
-            Object.entries(item).forEach(([key, value]) => {
-                if (['id', 'extraction_id', 'created_at', 'updated_at'].includes(key)) return;
-                if (value === null || value === undefined || value === '') return;
-
-                rows.push({
-                    section: itemSection,
-                    field: label(key),
-                    value: displayValue(getValue(value)),
-                    confidence: isFieldObject(value) ? `${(getConfidence(value) * 100).toFixed(1)}%` : ''
-                });
-            });
-        });
-
-        const header = ['Section', 'Field', 'Value'];
-        const escapeCSV = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
-        const csv = [header, ...rows.map(row => [row.section, row.field, row.value])]
-            .map(row => row.map(escapeCSV).join(','))
-            .join('\n');
-
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${data.job_number || data.jobNumber || 'extraction'}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => {
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-        }, 150);
-        toast.success('CSV downloaded');
-    }, [data, items]);
-
-    const handleExcelDownload = useCallback(async () => {
-        try {
-            await downloadExcel(id, data?.job_number || data?.jobNumber);
-            toast.success('Excel downloaded');
-        } catch (err) {
-            toast.error('Failed to download Excel');
-        }
-    }, [id, data]);
-
-    // ========================================================
-    // Loading & Error States
-    // ========================================================
-    if (loading) {
-        return (
-            <div className="flex min-h-[60vh] items-center justify-center">
-                <div className="text-center">
-                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50">
-                        <Loader2 size={25} className="animate-spin text-blue-900" />
-                    </div>
-                    <p className="mt-4 text-sm font-bold text-slate-700">Loading extraction...</p>
-                    <p className="mt-1 text-xs text-slate-400">Preparing your extracted data</p>
-                </div>
-            </div>
-        );
-    }
-
+  // Derived Calculations
+  const {
+    json,
+    accuracy,
+    extractedFieldCount,
+    missingFieldCount,
+    standardSections,
+    allMissingFields,
+  } = useMemo(() => {
     if (!data) {
-        return (
-            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-                <AlertTriangle size={25} className="mx-auto text-red-500" />
-                <h2 className="mt-4 text-lg font-black text-slate-900">Extraction not found</h2>
-                <p className="mt-2 text-sm text-slate-400">The requested extraction could not be loaded.</p>
-            </div>
-        );
+      return {
+        json: {},
+        accuracy: 0,
+        extractedFieldCount: 0,
+        missingFieldCount: 0,
+        standardSections: [],
+        allMissingFields: [],
+      };
     }
 
+    const jsonVal = data.extracted_json || data.extractedData || {};
+    const acc =
+      Number(
+        data.accuracy_score ??
+          data.accuracyPercent ??
+          Number(data.accuracy || 0) * 100
+      ) || 0;
+
+    let extCount = 0;
+    let missCount = 0;
+    const sections = [];
+    const missingGroups = [];
+
+    Object.entries(jsonVal).forEach(([key, section]) => {
+      if (key === 'overall_confidence' || key === 'document_type') return;
+
+      const result = collectFields(section);
+      extCount += result.extracted.length;
+      missCount += result.missing.length;
+
+      if (
+        key !== 'items' &&
+        key !== 'line_items' &&
+        key !== 'containers' &&
+        !Array.isArray(section) &&
+        section &&
+        typeof section === 'object'
+      ) {
+        sections.push([key, section]);
+        if (result.missing.length > 0) {
+          missingGroups.push({
+            sectionTitle: SECTION_TITLES[key] || label(key),
+            fields: result.missing,
+          });
+        }
+      }
+    });
+
+    return {
+      json: jsonVal,
+      accuracy: acc,
+      extractedFieldCount: extCount,
+      missingFieldCount: missCount,
+      standardSections: sections,
+      allMissingFields: missingGroups,
+    };
+  }, [data]);
+
+  // Event Handlers
+  const handleFieldEdit = useCallback(
+    async (fieldPath, newValue) => {
+      try {
+        await editField(id, fieldPath, newValue);
+        toast.success('Field updated successfully');
+        const res = await getExtraction(id);
+        setData(res.data);
+        setItems(res.data.items || res.data.extraction_items || []);
+      } catch {
+        toast.error('Failed to update field');
+      }
+    },
+    [id]
+  );
+
+  const handleHSConfirm = useCallback(
+    async (itemId, code) => {
+      try {
+        await confirmHSCode(id, itemId, code);
+        toast.success(`HS Code ${code} confirmed`);
+      } catch {
+        toast.error('Failed to confirm HS code');
+      }
+    },
+    [id]
+  );
+
+  const handleCSVDownload = useCallback(() => {
+    if (!data) return;
+    const rows = [];
+    const jsonVal = data.extracted_json || data.extractedData || {};
+
+    Object.entries(jsonVal).forEach(([sectionKey, section]) => {
+      if (sectionKey === 'overall_confidence' || sectionKey === 'document_type') return;
+      flattenForCSV(
+        section,
+        SECTION_TITLES[sectionKey] || label(sectionKey),
+        rows,
+        []
+      );
+    });
+
+    items.forEach((item, index) => {
+      const itemSection = `Line Item ${index + 1}`;
+      Object.entries(item).forEach(([key, value]) => {
+        if (['id', 'extraction_id', 'created_at', 'updated_at'].includes(key)) return;
+        if (value === null || value === undefined || value === '') return;
+
+        rows.push({
+          section: itemSection,
+          field: label(key),
+          value: displayValue(getValue(value)),
+          confidence: isFieldObject(value)
+            ? `${(getConfidence(value) * 100).toFixed(1)}%`
+            : '',
+        });
+      });
+    });
+
+    const header = ['Section', 'Field', 'Value'];
+    const escapeCSV = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const csv = [header, ...rows.map((row) => [row.section, row.field, row.value])]
+      .map((row) => row.map(escapeCSV).join(','))
+      .join('\n');
+
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${data.job_number || data.jobNumber || 'extraction'}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 150);
+    toast.success('CSV downloaded');
+  }, [data, items]);
+
+  const handleExcelDownload = useCallback(async () => {
+    try {
+      await downloadExcel(id, data?.job_number || data?.jobNumber);
+      toast.success('Excel downloaded');
+    } catch {
+      toast.error('Failed to download Excel');
+    }
+  }, [id, data]);
+
+  // Loading State
+  if (loading) {
     return (
-        <div className="space-y-5 pb-10 bg-white -m-6 p-6 min-h-screen">
-
-            {/* HEADER */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-950 via-slate-900 to-blue-900 p-6 shadow-xl sm:p-7">
-                <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl" />
-                <div className="absolute -bottom-28 -left-28 h-72 w-72 rounded-full bg-teal-500/10 blur-3xl" />
-                <div className="relative z-10">
-                    <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="flex items-start gap-4">
-                            <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-teal-400 shadow-lg sm:flex">
-                                <FileText size={24} className="text-slate-950" />
-                            </div>
-                            <div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <h1 className="text-2xl font-black tracking-tight text-white">Extraction Results</h1>
-                                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${data.doc_type === 'BOE' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
-                                        {data.doc_type === 'BOE' ? 'BOE — IMPORT' : 'SB — EXPORT'}
-                                    </span>
-                                </div>
-                                <p className="mt-2 text-sm text-slate-300">Review the information extracted from your customs documents.</p>
-                                <div className="mt-4 flex flex-wrap items-center gap-3">
-                                    <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5">
-                                        <FileText size={13} className="text-slate-400" />
-                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Job</span>
-                                        <span className="font-mono text-xs font-bold text-white">{data.job_number || data.jobNumber || '--'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                                        <Clock size={13} /> Extraction #{id}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex flex-wrap gap-2">
-                            <button onClick={() => navigate(-1)} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur transition hover:bg-white/20">
-                                <ArrowLeft size={15} /> Back
-                            </button>
-                            <button onClick={handleExcelDownload} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur transition hover:bg-white/20">
-                                <FileSpreadsheet size={15} /> Excel
-                            </button>
-                            <button onClick={handleCSVDownload} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur transition hover:bg-white/20">
-                                <Download size={15} /> CSV
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* METRICS */}
-                    <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                        <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                            <div className="flex items-center gap-2">
-                                <ShieldCheck size={15} className={accuracy >= 90 ? 'text-teal-300' : 'text-yellow-300'} />
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Accuracy</span>
-                            </div>
-                            <p className="mt-1 text-lg font-black text-white">{accuracy.toFixed(1)}%</p>
-                            <p className="mt-1 text-[9px] text-slate-400">Extracted fields only</p>
-                        </div>
-
-                        <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                            <div className="flex items-center gap-2">
-                                <Database size={15} className="text-blue-300" />
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Extracted</span>
-                            </div>
-                            <p className="mt-1 text-lg font-black text-white">{extractedFieldCount}</p>
-                        </div>
-
-                        <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                            <div className="flex items-center gap-2">
-                                <AlertTriangle size={15} className="text-orange-300" />
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Not Found</span>
-                            </div>
-                            <p className="mt-1 text-lg font-black text-white">{missingFieldCount}</p>
-                        </div>
-
-                        <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                            <div className="flex items-center gap-2">
-                                <Clock size={15} className="text-teal-300" />
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Processing</span>
-                            </div>
-                            <p className="mt-1 text-lg font-black text-white">{((data.extraction_time_ms || data.extractionTimeMs || 0) / 1000).toFixed(1)}s</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* HS VERIFICATION NOTICE */}
-            <div className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50">
-                <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
-                            <ShieldAlert size={19} className="text-amber-700" />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-black text-amber-950">HS / CTH codes require verification</h3>
-                            <p className="mt-1 max-w-3xl text-xs leading-5 text-amber-900/70">
-                                HS codes shown below are the values extracted by AI from your documents. They are not automatically replaced or modified using the tariff database. For filing, verify the classification and applicable tariff details using the HS Code Lookup and official Indian Customs sources.
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex shrink-0 flex-wrap gap-2">
-                        <button onClick={() => navigate(HS_LOOKUP_PATH)} className="inline-flex items-center gap-2 rounded-xl bg-blue-950 px-4 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-blue-900">
-                            <Search size={14} /> HS Code Lookup
-                        </button>
-                        <a href={ICEGATE_TRADE_GUIDE} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-xs font-black text-amber-900 transition hover:bg-amber-100">
-                            ICEGATE <ExternalLink size={13} />
-                        </a>
-                        <a href={CBIC_TARIFF} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-xs font-black text-amber-900 transition hover:bg-amber-100">
-                            CBIC Tariff <ExternalLink size={13} />
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            {/* EXTRACTION REVIEW LEGEND */}
-            <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-slate-800">Extraction Status</span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-4">
-                        <span className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
-                            <ConfidenceBadge score={0.95} /> High 90%+
-                        </span>
-                        <span className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
-                            <ConfidenceBadge score={0.75} /> Review 70–89%
-                        </span>
-                        <span className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
-                            <ConfidenceBadge score={0.5} /> Verify &lt;70%
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            {/* EXTRACTED INFORMATION */}
-            <div>
-                <h2 className="text-lg font-black tracking-tight text-slate-900">Extracted Information</h2>
-                <p className="mt-1 text-xs text-slate-400">Only information actually found in the uploaded documents is displayed as extracted.</p>
-            </div>
-
-            {/* STANDARD SECTIONS */}
-            <div className="space-y-4">
-                {standardSections.map(([sectionKey, section], index) => (
-                    <DynamicSection
-                        key={sectionKey}
-                        sectionKey={sectionKey}
-                        section={section}
-                        number={index + 1}
-                        onEdit={handleFieldEdit}
-                    />
-                ))}
-            </div>
-
-            {/* CONTAINERS */}
-            {Array.isArray(json.containers) && json.containers.length > 0 && (
-                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100">
-                                <Package size={15} className="text-blue-800" />
-                            </div>
-                            <div>
-                                <h2 className="text-sm font-black text-slate-900">Container Details</h2>
-                                <p className="mt-0.5 text-[10px] text-slate-400">{json.containers.length} container{json.containers.length !== 1 && 's'}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="space-y-3 p-4">
-                        {json.containers.map((container, index) => {
-                            const result = collectFields(container);
-                            return (
-                                <div key={index} className="overflow-hidden rounded-xl border border-slate-200">
-                                    <div className="bg-slate-50 px-4 py-3">
-                                        <span className="text-xs font-black text-slate-800">Container {index + 1}</span>
-                                    </div>
-                                    {result.extracted.length > 0 && (
-                                        <div className="divide-y divide-slate-100">
-                                            {result.extracted.map(field => (
-                                                <FieldRow
-                                                    key={field.key}
-                                                    label={field.label}
-                                                    value={displayValue(field.value)}
-                                                    confidence={field.confidence}
-                                                    fieldKey={`containers.${index}.${field.key}`}
-                                                    onEdit={handleFieldEdit}
-                                                />
-                                            ))}
-                                        </div>
-                                    )}
-                                    {result.missing.length > 0 && (
-                                        <div className="border-t border-orange-100 bg-orange-50/40 px-4 py-3">
-                                            <p className="text-[10px] font-black text-orange-800">Not extracted:</p>
-                                            <p className="mt-1 text-[10px] text-slate-500">{result.missing.map(f => f.label).join(', ')}</p>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </section>
-            )}
-
-            {/* LINE ITEMS */}
-            {items.length > 0 && (
-                <section className="overflow-hidden rounded-2xl border-2 border-blue-200 bg-white shadow-sm">
-                    <div className="border-b border-blue-200 bg-gradient-to-r from-blue-50 to-teal-50 px-5 py-4">
-                        <div className="flex items-start gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-900">
-                                <Package size={17} className="text-white" />
-                            </div>
-                            <div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="rounded-md bg-blue-900 px-2 py-1 text-[10px] font-black text-white">LINE ITEMS</span>
-                                    <h2 className="text-sm font-black text-blue-950">Product Details</h2>
-                                    <span className="rounded-md border border-blue-200 bg-white px-2 py-1 text-[10px] font-bold text-blue-700">
-                                        {items.length} item{items.length !== 1 && 's'}
-                                    </span>
-                                </div>
-                                <p className="mt-1 text-[11px] text-slate-500">Review product descriptions, quantities, values and HS codes.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div>
-                        {items.map((item, index) => {
-                            const description = getValue(item.item_description || item.description);
-                            const hsCode = getValue(item.hs_code);
-                            return (
-                                <div key={item.id || index} className="border-b border-slate-200 last:border-0">
-                                    <div className="flex items-center justify-between bg-slate-50 px-5 py-3">
-                                        <div className="flex items-center gap-3">
-                                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[10px] font-black text-blue-900">
-                                                {String(index + 1).padStart(2, '0')}
-                                            </span>
-                                            <span className="text-xs font-black text-slate-700">Item {index + 1}</span>
-                                        </div>
-                                        <ConfidenceBadge score={getConfidence(item.confidence_score) || Number(item.confidence_score) || 0} showLabel />
-                                    </div>
-
-                                    <div className="divide-y divide-slate-100">
-                                        {hasValue(description) && (
-                                            <FieldRow
-                                                label="Description"
-                                                value={displayValue(description)}
-                                                confidence={getConfidence(item.item_description || item.description) || 0.95}
-                                                fieldKey={`items.${item.id}.item_description`}
-                                                onEdit={handleFieldEdit}
-                                            />
-                                        )}
-
-                                        {hasValue(hsCode) && (
-                                            <div className="border-b border-slate-100">
-                                                <FieldRow
-                                                    label="HS Code"
-                                                    value={displayValue(hsCode)}
-                                                    confidence={getConfidence(item.hs_code) || Number(item.confidence_score) || 0}
-                                                    fieldKey={`items.${item.id}.hs_code`}
-                                                    onEdit={handleFieldEdit}
-                                                />
-                                                <div className="mx-5 mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
-                                                    <div className="flex items-start gap-3">
-                                                        <Search size={17} className="mt-0.5 shrink-0 text-blue-700" />
-                                                        <div className="flex-1">
-                                                            <p className="text-xs font-black text-blue-950">Verify this HS Code</p>
-                                                            <p className="mt-1 text-[11px] leading-5 text-slate-600">
-                                                                The HS Code shown above was extracted from your document. It has not been automatically classified by the system. Verify the code and product description using the HS Code Lookup before final submission.
-                                                            </p>
-                                                            <div className="mt-3 flex flex-wrap gap-2">
-                                                                <button type="button" onClick={() => navigate('/hs-lookup')} className="flex items-center gap-2 rounded-lg bg-blue-900 px-3 py-2 text-[10px] font-black text-white transition hover:bg-blue-800">
-                                                                    <Search size={13} /> Open HS Code Lookup
-                                                                </button>
-                                                                <a href={ICEGATE_TRADE_GUIDE} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-black text-slate-700 transition hover:bg-slate-50">
-                                                                    <ExternalLink size={13} /> Verify on ICEGATE
-                                                                </a>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {[
-                                            ['Quantity', item.quantity, 'quantity'],
-                                            ['Unit', item.unit, 'unit'],
-                                            ['Unit Price', item.unit_price, 'unit_price'],
-                                            ['Total Value', item.total_value, 'total_value']
-                                        ].map(([fieldLabel, fieldValue, colName]) => {
-                                            if (!hasValue(getValue(fieldValue))) return null;
-                                            return (
-                                                <FieldRow
-                                                    key={fieldLabel}
-                                                    label={fieldLabel}
-                                                    value={displayValue(getValue(fieldValue))}
-                                                    confidence={getConfidence(fieldValue) || 0.95}
-                                                    fieldKey={`items.${item.id}.${colName}`}
-                                                    onEdit={handleFieldEdit}
-                                                />
-                                            );
-                                        })}
-                                    </div>
-
-                                    {Array.isArray(item.ai_suggested_hs) && item.ai_suggested_hs.length > 0 && (
-                                        <div className="border-t border-blue-100 bg-blue-50/40">
-                                            <HSCodeSuggestion
-                                                suggestions={item.ai_suggested_hs}
-                                                itemId={item.id}
-                                                onConfirm={handleHSConfirm}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </section>
-            )}
-
-            {/* NO ITEMS */}
-            {items.length === 0 && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div className="flex items-center gap-3">
-                        <Package size={18} className="text-slate-400" />
-                        <div>
-                            <p className="text-xs font-black text-slate-700">No line items extracted</p>
-                            <p className="mt-1 text-[10px] text-slate-400">No product line-item data was returned by the extraction engine.</p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* RAW ASCII DATA */}
-            <AsciiResultView jsonData={data.extracted_json || data.extractedData || {}} />
-
-            {/* FINAL SUMMARY */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
-                            <CheckCircle2 size={19} className="text-green-600" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-black text-slate-800">Extraction Complete</p>
-                            <p className="mt-0.5 text-xs text-slate-400">
-                                {extractedFieldCount} fields extracted from {data.doc_type || json.document_type || 'document'}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-5">
-                        <div className="text-right">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Processing Time</p>
-                            <p className="mt-0.5 text-sm font-black text-slate-800">{((data.extraction_time_ms || data.extractionTimeMs || 0) / 1000).toFixed(1)}s</p>
-                        </div>
-                        <div className="h-8 w-px bg-slate-200" />
-                        <div className="text-right">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Accuracy</p>
-                            <p className={`mt-0.5 text-sm font-black ${accuracy >= 90 ? 'text-green-700' : accuracy >= 70 ? 'text-yellow-700' : 'text-red-700'}`}>
-                                {accuracy.toFixed(1)}%
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* MISSING FIELD EXPLANATION */}
-            {missingFieldCount > 0 && (
-                <div className="rounded-2xl border border-orange-200 bg-orange-50/60 p-5">
-                    <div className="flex items-start gap-3">
-                        <AlertTriangle size={18} className="mt-0.5 shrink-0 text-orange-600" />
-                        <div className="w-full">
-                            <p className="text-xs font-black text-orange-900">{missingFieldCount} fields were not extracted</p>
-                            <p className="mt-1 text-[11px] leading-5 text-slate-600">These fields were not found in the uploaded documents. They are listed below by section:</p>
-                            <div className="mt-4 space-y-3">
-                                {allMissingFields.map((group) => (
-                                    <div key={group.sectionTitle} className="border-t border-orange-200/40 pt-3 first:border-0 first:pt-0">
-                                        <p className="text-[10px] font-bold text-orange-850 uppercase tracking-wider mb-2">{group.sectionTitle}</p>
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {group.fields.map((field) => (
-                                                <span key={field.key} className="rounded bg-white border border-orange-200/70 px-2 py-1 text-[9px] font-medium text-slate-500">
-                                                    {field.label}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#007aff]/10 text-[#007aff]">
+            <Loader2 size={26} className="animate-spin" strokeWidth={2.2} />
+          </div>
+          <p className="mt-4 text-sm font-bold text-[#1c1c1e]">
+            Loading extraction results...
+          </p>
+          <p className="mt-1 text-xs text-[#48484a]">
+            Preparing structured customs declaration data
+          </p>
         </div>
+      </div>
     );
+  }
+
+  // Not Found State
+  if (!data) {
+    return (
+      <div className="rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white p-10 text-center shadow-[0_2px_12px_rgba(0,0,0,0.04)] max-w-xl mx-auto my-12">
+        <AlertTriangle size={32} className="mx-auto text-[#ff3b30]" strokeWidth={2.2} />
+        <h2 className="mt-4 text-lg font-bold text-[#1c1c1e]">
+          Extraction Not Found
+        </h2>
+        <p className="mt-1.5 text-sm text-[#48484a]">
+          The requested extraction could not be loaded or has been removed.
+        </p>
+        <button
+          onClick={() => navigate('/history')}
+          className="mt-6 rounded-[14px] bg-[#007aff] px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#0066d6] transition active:scale-95"
+        >
+          Return to History
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 pb-12 max-w-7xl mx-auto">
+      {/* ================= HERO (Apple HIG) ================= */}
+      <div className="relative overflow-hidden rounded-[20px] bg-white p-7 sm:p-8 shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-[rgba(60,60,67,0.12)]">
+        <div className="relative z-10">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-white text-[#1c1c1e] border border-[rgba(60,60,67,0.15)] shadow-2xs">
+                  {data.doc_type === 'BOE'
+                    ? 'BOE — IMPORT DECLARATION'
+                    : data.doc_type === 'SB'
+                    ? 'SB — EXPORT DECLARATION'
+                    : data.doc_type || 'DOCUMENT'}
+                </span>
+
+                <div className="flex items-center gap-2 rounded-full border border-[rgba(60,60,67,0.12)] bg-white px-3 py-1 text-xs font-medium text-[#1c1c1e]">
+                  <FileText size={13} className="text-[#1c1c1e]" />
+                  <span className="text-[#48484a]">Job:</span>
+                  <span className="font-mono font-bold">
+                    {data.job_number || data.jobNumber || '--'}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs text-[#636366] px-1">
+                  <Clock size={13} />
+                  <span>ID #{id}</span>
+                </div>
+              </div>
+
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#1c1c1e]">
+                Extraction Results
+              </h1>
+
+              <p className="text-sm sm:text-base text-[#48484a] leading-relaxed max-w-3xl">
+                Review and inspect all structured information extracted from your customs documents. Verify tariff classifications and download declarations.
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <button
+                onClick={() => navigate(-1)}
+                className="flex items-center gap-2 rounded-[14px] border border-[rgba(60,60,67,0.15)] bg-[#f2f2f7] px-4 py-2.5 text-xs font-semibold text-[#1c1c1e] transition hover:bg-[#e5e5ea] active:scale-[0.98]"
+              >
+                <ArrowLeft size={14} strokeWidth={2.2} /> Back
+              </button>
+
+              <button
+                onClick={handleExcelDownload}
+                className="flex items-center gap-2 rounded-[14px] bg-[#34c759] hover:bg-[#28a745] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition active:scale-[0.98]"
+              >
+                <FileSpreadsheet size={15} strokeWidth={2.2} /> Download Excel
+              </button>
+
+              <button
+                onClick={handleCSVDownload}
+                className="flex items-center gap-2 rounded-[14px] bg-[#007aff] hover:bg-[#0066d6] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition active:scale-[0.98]"
+              >
+                <Download size={15} strokeWidth={2.2} /> Download CSV
+              </button>
+            </div>
+          </div>
+
+          {/* METRIC WIDGETS ROW */}
+          <div className="mt-7 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="rounded-[16px] border border-[rgba(60,60,67,0.1)] bg-white p-4 shadow-2xs">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#48484a]">
+                  Accuracy
+                </span>
+                <ShieldCheck
+                  size={17}
+                  strokeWidth={2.2}
+                  className="text-[#1c1c1e]"
+                />
+              </div>
+              <p className="text-2xl font-bold tracking-tight text-[#1c1c1e]">
+                {accuracy.toFixed(1)}%
+              </p>
+              <p className="mt-1 text-[11px] text-[#636366]">
+                Extracted fields confidence
+              </p>
+            </div>
+
+            <div className="rounded-[16px] border border-[rgba(60,60,67,0.1)] bg-white p-4 shadow-2xs">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#48484a]">
+                  Extracted
+                </span>
+                <Database size={17} strokeWidth={2.2} className="text-[#1c1c1e]" />
+              </div>
+              <p className="text-2xl font-bold tracking-tight text-[#1c1c1e]">
+                {extractedFieldCount}
+              </p>
+              <p className="mt-1 text-[11px] text-[#636366]">
+                Populated document fields
+              </p>
+            </div>
+
+            <div className="rounded-[16px] border border-[rgba(60,60,67,0.1)] bg-white p-4 shadow-2xs">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#48484a]">
+                  Not Extracted
+                </span>
+                <AlertTriangle size={17} strokeWidth={2.2} className="text-[#ff9500]" />
+              </div>
+              <p className="text-2xl font-bold tracking-tight text-[#1c1c1e]">
+                {missingFieldCount}
+              </p>
+              <p className="mt-1 text-[11px] text-[#636366]">
+                Unpopulated or optional
+              </p>
+            </div>
+
+            <div className="rounded-[16px] border border-[rgba(60,60,67,0.1)] bg-white p-4 shadow-2xs">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#48484a]">
+                  Processing Time
+                </span>
+                <Clock size={17} strokeWidth={2.2} className="text-[#1c1c1e]" />
+              </div>
+              <p className="text-2xl font-bold tracking-tight text-[#1c1c1e]">
+                {((data.extraction_time_ms || data.extractionTimeMs || 0) / 1000).toFixed(1)}s
+              </p>
+              <p className="mt-1 text-[11px] text-[#636366]">
+                Total end-to-end extraction
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ================= HS VERIFICATION NOTICE ================= */}
+      <div className="rounded-[20px] border border-[#ff9500]/25 bg-[#ff9500]/8 p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#ff9500]/15 text-[#ff9500]">
+              <ShieldAlert size={20} strokeWidth={2.2} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-[#1c1c1e] tracking-tight">
+                HS / CTH Classification Verification Notice
+              </h3>
+              <p className="mt-1 max-w-3xl text-xs leading-relaxed text-[#48484a]">
+                HS codes shown below were extracted verbatim from your uploaded documents. Prior to ICEGATE filing, verify classification and applicable duties using the official customs tariff schedule.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <button
+              onClick={() => navigate(HS_LOOKUP_PATH)}
+              className="inline-flex items-center gap-1.5 rounded-[12px] bg-[#007aff] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0066d6] active:scale-95"
+            >
+              <Search size={14} strokeWidth={2.2} /> HS Code Lookup
+            </button>
+
+            <a
+              href={ICEGATE_TRADE_GUIDE}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-[12px] border border-[rgba(60,60,67,0.15)] bg-white px-3.5 py-2.5 text-xs font-semibold text-[#1c1c1e] transition hover:bg-[#f2f2f7] active:scale-95"
+            >
+              ICEGATE <ExternalLink size={13} />
+            </a>
+
+            <a
+              href={CBIC_TARIFF}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-[12px] border border-[rgba(60,60,67,0.15)] bg-white px-3.5 py-2.5 text-xs font-semibold text-[#1c1c1e] transition hover:bg-[#f2f2f7] active:scale-95"
+            >
+              CBIC Tariff <ExternalLink size={13} />
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* ================= EXTRACTION REVIEW LEGEND ================= */}
+      <div className="rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white px-6 py-4 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-xs font-bold uppercase tracking-[0.06em] text-[#48484a]">
+            Confidence Legend
+          </span>
+
+          <div className="flex flex-wrap items-center gap-5">
+            <span className="flex items-center gap-2 text-xs font-medium text-[#1c1c1e]">
+              <ConfidenceBadge score={0.95} /> High Confidence (90%+)
+            </span>
+
+            <span className="flex items-center gap-2 text-xs font-medium text-[#1c1c1e]">
+              <ConfidenceBadge score={0.75} /> Review Advised (70–89%)
+            </span>
+
+            <span className="flex items-center gap-2 text-xs font-medium text-[#1c1c1e]">
+              <ConfidenceBadge score={0.5} /> Verify Carefully (&lt;70%)
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ================= STANDARD EXTRACTED SECTIONS ================= */}
+      <div className="space-y-5">
+        <div className="pt-2">
+          <h2 className="text-xl font-bold tracking-tight text-[#1c1c1e]">
+            Extracted Declaration Sections
+          </h2>
+          <p className="mt-1 text-xs text-[#48484a]">
+            Fields populated directly from the parsed customs documentation.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          {standardSections.map(([sectionKey, section], index) => (
+            <DynamicSection
+              key={sectionKey}
+              sectionKey={sectionKey}
+              section={section}
+              number={index + 1}
+              onEdit={handleFieldEdit}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* ================= CONTAINERS (IF PRESENT) ================= */}
+      {Array.isArray(json.containers) && json.containers.length > 0 && (
+        <section className="overflow-hidden rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+          <div className="border-b border-[rgba(60,60,67,0.1)] bg-white px-6 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-white border border-[rgba(60,60,67,0.18)] text-[#1c1c1e]">
+                <Package size={17} strokeWidth={2.2} />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-[#1c1c1e] tracking-tight">
+                  Container Details
+                </h2>
+                <p className="text-[11px] text-[#48484a]">
+                  {json.containers.length} container{json.containers.length !== 1 && 's'} declared
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4 p-5">
+            {json.containers.map((container, index) => {
+              const result = collectFields(container);
+              return (
+                <div
+                  key={index}
+                  className="overflow-hidden rounded-[16px] border border-[rgba(60,60,67,0.1)] bg-white"
+                >
+                  <div className="bg-white px-5 py-3 border-b border-[rgba(60,60,67,0.08)]">
+                    <span className="text-xs font-bold text-[#1c1c1e]">
+                      Container {index + 1}
+                    </span>
+                  </div>
+
+                  {result.extracted.length > 0 && (
+                    <div className="divide-y divide-[rgba(60,60,67,0.06)]">
+                      {result.extracted.map((field) => (
+                        <FieldRow
+                          key={field.key}
+                          label={field.label}
+                          value={displayValue(field.value)}
+                          confidence={field.confidence}
+                          fieldKey={`containers.${index}.${field.key}`}
+                          onEdit={handleFieldEdit}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ================= LINE ITEMS / PRODUCT DETAILS ================= */}
+      {items.length > 0 && (
+        <section className="overflow-hidden rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+          {/* Section Header */}
+          <div className="border-b border-[rgba(60,60,67,0.1)] bg-white px-6 py-5">
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-white border border-[rgba(60,60,67,0.18)] text-[#1c1c1e] shadow-2xs">
+                <Package size={20} strokeWidth={2.2} />
+              </div>
+
+              <div>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h2 className="text-base font-bold text-[#1c1c1e] tracking-tight">
+                    Product Line Items
+                  </h2>
+
+                  <span className="rounded-full bg-white border border-[rgba(60,60,67,0.15)] px-2.5 py-0.5 text-xs font-bold text-[#1c1c1e]">
+                    {items.length} item{items.length !== 1 && 's'}
+                  </span>
+                </div>
+
+                <p className="mt-1 text-xs text-[#48484a]">
+                  Review product descriptions, quantities, unit prices, total values, and HS classifications.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Line Items List */}
+          <div className="divide-y divide-[rgba(60,60,67,0.1)]">
+            {items.map((item, index) => {
+              const description = getValue(item.item_description || item.description);
+              const hsCode = getValue(item.hs_code);
+
+              return (
+                <div key={item.id || index} className="p-6 space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-[rgba(60,60,67,0.08)]">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-white border border-[rgba(60,60,67,0.18)] text-xs font-bold text-[#1c1c1e]">
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
+                      <span className="text-sm font-bold text-[#1c1c1e]">
+                        Item #{index + 1}
+                      </span>
+                    </div>
+
+                    <ConfidenceBadge
+                      score={
+                        getConfidence(item.confidence_score) ||
+                        Number(item.confidence_score) ||
+                        0
+                      }
+                      showLabel
+                    />
+                  </div>
+
+                  {/* Item Fields */}
+                  <div className="divide-y divide-[rgba(60,60,67,0.06)] rounded-[14px] border border-[rgba(60,60,67,0.08)] overflow-hidden">
+                    {hasValue(description) && (
+                      <FieldRow
+                        label="Description"
+                        value={displayValue(description)}
+                        confidence={
+                          getConfidence(item.item_description || item.description) || 0.95
+                        }
+                        fieldKey={`items.${item.id}.item_description`}
+                        onEdit={handleFieldEdit}
+                      />
+                    )}
+
+                    {hasValue(hsCode) && (
+                      <div className="bg-white">
+                        <FieldRow
+                          label="HS Code"
+                          value={displayValue(hsCode)}
+                          confidence={
+                            getConfidence(item.hs_code) ||
+                            Number(item.confidence_score) ||
+                            0
+                          }
+                          fieldKey={`items.${item.id}.hs_code`}
+                          onEdit={handleFieldEdit}
+                        />
+
+                        {/* HS Notice Callout */}
+                        <div className="m-4 rounded-[14px] border border-[rgba(60,60,67,0.12)] bg-white p-4 shadow-2xs">
+                          <div className="flex items-start gap-3">
+                            <Search
+                              size={18}
+                              strokeWidth={2.2}
+                              className="mt-0.5 shrink-0 text-[#1c1c1e]"
+                            />
+                            <div className="flex-1">
+                              <p className="text-xs font-bold text-[#1c1c1e]">
+                                Verify Extracted HS Code
+                              </p>
+                              <p className="mt-1 text-xs leading-relaxed text-[#48484a]">
+                                The code shown above is directly extracted from the invoice. Verify classification against the 8-digit Indian Customs ITC-HS schedule.
+                              </p>
+
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => navigate('/hs-lookup')}
+                                  className="flex items-center gap-1.5 rounded-[10px] bg-[#007aff] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#0066d6] active:scale-95"
+                                >
+                                  <Search size={13} strokeWidth={2.2} /> Search ITC-HS
+                                </button>
+                                <a
+                                  href={ICEGATE_TRADE_GUIDE}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1.5 rounded-[10px] border border-[rgba(60,60,67,0.15)] bg-white px-3 py-1.5 text-xs font-semibold text-[#1c1c1e] transition hover:bg-[#f2f2f7] active:scale-95"
+                                >
+                                  <ExternalLink size={13} /> Official Tariff Guide
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {[
+                      ['Quantity', item.quantity, 'quantity'],
+                      ['Unit', item.unit, 'unit'],
+                      ['Unit Price', item.unit_price, 'unit_price'],
+                      ['Total Value', item.total_value, 'total_value'],
+                    ].map(([fieldLabel, fieldValue, colName]) => {
+                      if (!hasValue(getValue(fieldValue))) return null;
+                      return (
+                        <FieldRow
+                          key={fieldLabel}
+                          label={fieldLabel}
+                          value={displayValue(getValue(fieldValue))}
+                          confidence={getConfidence(fieldValue) || 0.95}
+                          fieldKey={`items.${item.id}.${colName}`}
+                          onEdit={handleFieldEdit}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {/* AI Suggested HS Codes */}
+                  {Array.isArray(item.ai_suggested_hs) && item.ai_suggested_hs.length > 0 && (
+                    <HSCodeSuggestion
+                      suggestions={item.ai_suggested_hs}
+                      itemId={item.id}
+                      onConfirm={handleHSConfirm}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ================= NO ITEMS STATE ================= */}
+      {items.length === 0 && (
+        <div className="rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+          <div className="flex items-center gap-3">
+            <Package size={20} className="text-[#636366]" />
+            <div>
+              <p className="text-sm font-bold text-[#1c1c1e]">
+                No Line Items Extracted
+              </p>
+              <p className="mt-0.5 text-xs text-[#48484a]">
+                No product line-item rows were detected in the source documents.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= RAW ASCII TABLE VIEW ================= */}
+      <AsciiResultView jsonData={data.extracted_json || data.extractedData || {}} />
+
+      {/* ================= FINAL SUMMARY ================= */}
+      <div className="rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-white border border-[rgba(60,60,67,0.18)] text-[#1c1c1e] shadow-2xs">
+              <CheckCircle2 size={20} strokeWidth={2.4} />
+            </div>
+            <div>
+              <p className="text-base font-bold text-[#1c1c1e] tracking-tight">
+                Extraction Complete
+              </p>
+              <p className="mt-0.5 text-xs text-[#48484a]">
+                {extractedFieldCount} fields extracted from{' '}
+                {data.doc_type || json.document_type || 'document'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="text-right">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#48484a]">
+                Processing Time
+              </p>
+              <p className="mt-0.5 text-sm font-bold text-[#1c1c1e]">
+                {((data.extraction_time_ms || data.extractionTimeMs || 0) / 1000).toFixed(1)}s
+              </p>
+            </div>
+
+            <div className="h-8 w-px bg-[rgba(60,60,67,0.12)]" />
+
+            <div className="text-right">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#48484a]">
+                Accuracy
+              </p>
+              <p
+                className={`mt-0.5 text-sm font-bold ${
+                  accuracy >= 90
+                    ? 'text-[#34c759]'
+                    : accuracy >= 75
+                    ? 'text-[#007aff]'
+                    : 'text-[#ff9500]'
+                }`}
+              >
+                {accuracy.toFixed(1)}%
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ================= MISSING FIELDS GROUP ================= */}
+      {missingFieldCount > 0 && (
+        <div className="rounded-[20px] border border-[#ff9500]/25 bg-[#ff9500]/8 p-6">
+          <div className="flex items-start gap-3">
+            <AlertTriangle size={20} className="mt-0.5 shrink-0 text-[#ff9500]" />
+            <div className="w-full">
+              <p className="text-sm font-bold text-[#1c1c1e]">
+                {missingFieldCount} fields were not found in source documents
+              </p>
+              <p className="mt-1 text-xs text-[#48484a]">
+                These declaration fields were not detected in the uploaded PDFs:
+              </p>
+
+              <div className="mt-4 space-y-3">
+                {allMissingFields.map((group) => (
+                  <div
+                    key={group.sectionTitle}
+                    className="border-t border-[#ff9500]/15 pt-3 first:border-0 first:pt-0"
+                  >
+                    <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#1c1c1e] mb-2">
+                      {group.sectionTitle}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {group.fields.map((field) => (
+                        <span
+                          key={field.key}
+                          className="rounded-[8px] bg-white border border-[rgba(60,60,67,0.12)] px-2.5 py-1 text-xs font-medium text-[#48484a]"
+                        >
+                          {field.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
