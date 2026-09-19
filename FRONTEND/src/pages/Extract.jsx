@@ -285,14 +285,12 @@ export default function Extract() {
 
           <UploadZone
             label="Packing List"
-            required
             file={files.packingList}
             onFileChange={setFile('packingList')}
           />
 
           <UploadZone
             label="Bill of Lading / AWB"
-            required
             file={files.billOfLading}
             onFileChange={setFile('billOfLading')}
           />
