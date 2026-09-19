@@ -9,14 +9,15 @@ import {
   CheckCircle2,
   ShieldCheck,
   Loader2,
-  Send,
-  MessageSquare
+  MessageSquare,
+  CreditCard,
+  Building,
 } from 'lucide-react';
 
 export default function Payment() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, updateUser } = useAuth();
+  const { user } = useAuth();
   const [transactionId, setTransactionId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [qrLoadError, setQrLoadError] = useState(false);
@@ -25,11 +26,17 @@ export default function Payment() {
 
   if (planId !== 'pro') {
     return (
-      <div className="max-w-md mx-auto text-center py-12">
-        <p className="text-red-600 font-bold">Invalid Plan Selected</p>
-        <button onClick={() => navigate('/pricing')} className="btn-secondary mt-4">
-          Back to Pricing
-        </button>
+      <div className="max-w-md mx-auto text-center py-16">
+        <div className="rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white p-8 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+          <p className="text-[#ff3b30] font-bold text-base">Invalid Plan Selected</p>
+          <p className="text-xs text-[#48484a] mt-1.5">Please select a valid subscription tier.</p>
+          <button
+            onClick={() => navigate('/pricing')}
+            className="mt-6 rounded-[14px] border border-[rgba(60,60,67,0.15)] bg-[#f2f2f7] px-5 py-2.5 text-xs font-semibold text-[#1c1c1e] hover:bg-[#e5e5ea] transition"
+          >
+            Back to Pricing
+          </button>
+        </div>
       </div>
     );
   }
@@ -44,9 +51,10 @@ export default function Payment() {
     setIsSubmitting(true);
     setTimeout(() => {
       setIsSubmitting(false);
-      toast.error('Automatic instant verification is currently unavailable. Please click "Confirm on WhatsApp" below to submit your payment details for manual activation.', {
-        duration: 6000
-      });
+      toast.error(
+        'Automatic instant verification is currently unavailable. Please click "Confirm on WhatsApp" below to submit your payment details for manual activation.',
+        { duration: 6000 }
+      );
     }, 1200);
   };
 
@@ -62,105 +70,119 @@ Please approve my upgrade.`;
   };
 
   return (
-    <div className="max-w-4xl mx-auto pb-12">
-      {/* HEADER & BACK LINK */}
-      <div className="mb-6 flex items-center gap-3">
+    <div className="space-y-6 pb-12 max-w-5xl mx-auto">
+      {/* ================= HEADER & BACK ================= */}
+      <div className="flex items-center gap-3.5">
         <button
           onClick={() => navigate('/pricing')}
-          className="p-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 transition-colors text-gray-500 hover:text-gray-800"
+          className="flex h-10 w-10 items-center justify-center rounded-[12px] border border-[rgba(60,60,67,0.15)] bg-white text-[#1c1c1e] hover:bg-[#f2f2f7] transition active:scale-95 shadow-2xs"
+          title="Back to pricing"
         >
-          <ArrowLeft size={16} />
+          <ArrowLeft size={16} strokeWidth={2.2} />
         </button>
+
         <div>
-          <h1 className="text-xl font-black text-gray-900">Checkout & Payment</h1>
-          <p className="text-xs text-gray-400">Complete your transaction to activate your upgrade</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1c1c1e]">
+            Checkout & Payment
+          </h1>
+          <p className="text-xs text-[#48484a]">
+            Complete your transaction to activate your QuickCL Pro upgrade
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+        {/* ================= LEFT COLUMN: QR CODE DISPLAY ================= */}
+        <div className="md:col-span-7 space-y-4">
+          <div className="rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white p-7 shadow-[0_2px_12px_rgba(0,0,0,0.04)] flex flex-col items-center justify-center text-center">
+            <h2 className="text-base font-bold text-[#1c1c1e] tracking-tight">
+              Instant UPI QR Code
+            </h2>
+            <p className="text-xs text-[#48484a] mt-1 mb-6">
+              Scan & pay ₹4,000 using Google Pay, PhonePe, Paytm, or BHIM
+            </p>
 
-        {/* LEFT COLUMN: QR CODE DISPLAY */}
-        <div className="md:col-span-7 flex flex-col gap-4">
-          <div className="card-base p-6 bg-white flex flex-col items-center justify-center text-center">
-            <h2 className="text-sm font-black text-gray-800 mb-1">UPI QR Code</h2>
-            <p className="text-[11px] text-gray-400 mb-6">Scan and pay ₹4,000 using GPay, PhonePe, Paytm or BHIM</p>
-
-            {/* QR Code Container */}
-            <div className="w-64 h-64 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center bg-gray-50 relative overflow-hidden mb-6 p-2">
+            {/* QR Code Frame */}
+            <div className="w-64 h-64 border-2 border-dashed border-[rgba(60,60,67,0.18)] rounded-[20px] flex flex-col items-center justify-center bg-[#f9f9fb] relative overflow-hidden mb-6 p-2 shadow-2xs">
               {!qrLoadError ? (
                 <img
                   src={QrCodephoto}
                   alt="Payment QR Code"
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain rounded-[14px]"
                   onError={() => setQrLoadError(true)}
                 />
               ) : (
                 <div className="flex flex-col items-center p-4">
-                  <QrCode size={48} className="text-gray-300 mb-3 animate-pulse" />
-                  <p className="text-xs font-bold text-gray-700">QR Code Placeholder</p>
-                  <p className="text-[10px] text-gray-400 mt-1 max-w-[200px]">
-                    To display your QR code here, place your QR code image file at:
+                  <QrCode size={48} className="text-[#636366] mb-3 animate-pulse" />
+                  <p className="text-xs font-bold text-[#1c1c1e]">QR Code Not Loaded</p>
+                  <p className="text-[10px] text-[#636366] mt-1 max-w-[200px]">
+                    Pay directly to UPI ID: 8160024858@upi
                   </p>
-                  <code className="text-[9px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-mono mt-2 select-all max-w-[220px] truncate">
-                    FRONTEND/src/assets/payment_qr.png
-                  </code>
                 </div>
               )}
             </div>
 
-            {/* UPI Details Card */}
-            <div className="w-full rounded-xl bg-gray-50 border border-gray-100 p-4 text-left">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Merchant Details</p>
-              <div className="space-y-1.5 text-xs text-gray-700">
+            {/* Merchant Details Card */}
+            <div className="w-full rounded-[16px] bg-[#f9f9fb] border border-[rgba(60,60,67,0.08)] p-4 text-left space-y-2.5">
+              <p className="text-[10px] font-semibold text-[#48484a] uppercase tracking-[0.06em]">
+                Merchant Verification Details
+              </p>
+
+              <div className="space-y-2 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Payee Name:</span>
-                  <span className="font-bold text-gray-800">MAPS Tech & AI</span>
+                  <span className="text-[#48484a]">Payee Account:</span>
+                  <span className="font-semibold text-[#1c1c1e]">MAPS Tech & AI</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">UPI ID:</span>
-                  <span className="font-bold text-blue-800 select-all">8160024858@upi</span>
+                  <span className="text-[#48484a]">UPI ID:</span>
+                  <span className="font-mono font-bold text-[#007aff] select-all">
+                    8160024858@upi
+                  </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Amount:</span>
-                  <span className="font-black text-green-700">₹4,000 INR</span>
+                <div className="flex justify-between pt-1 border-t border-[rgba(60,60,67,0.06)]">
+                  <span className="text-[#48484a]">Amount Payable:</span>
+                  <span className="font-bold text-sm text-[#34c759]">₹4,000 INR</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* RIGHT COLUMN: CONFIRMATION FORM */}
-        <div className="md:col-span-5 flex flex-col gap-4">
-
-          {/* Plan Invoice Card */}
-          <div className="card-base p-5 bg-white">
-            <h2 className="text-sm font-black text-gray-800 mb-3">Order Summary</h2>
-            <div className="divide-y divide-gray-100">
-              <div className="py-2.5 flex justify-between text-xs">
-                <span className="text-gray-500 font-medium">QuickCL Pro Plan (120 Limit)</span>
-                <span className="font-bold text-gray-800">₹4,000.00</span>
+        {/* ================= RIGHT COLUMN: CONFIRMATION FORM ================= */}
+        <div className="md:col-span-5 space-y-4">
+          {/* Order Summary Card */}
+          <div className="rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+            <h2 className="text-sm font-bold text-[#1c1c1e] tracking-tight mb-3">
+              Order Summary
+            </h2>
+            <div className="divide-y divide-[rgba(60,60,67,0.06)] text-xs">
+              <div className="py-2.5 flex justify-between">
+                <span className="text-[#48484a]">QuickCL Pro Plan (120 Quota)</span>
+                <span className="font-semibold text-[#1c1c1e]">₹4,000.00</span>
               </div>
-              <div className="py-2.5 flex justify-between text-xs">
-                <span className="text-gray-500 font-medium">Platform Fee & Taxes</span>
-                <span className="font-bold text-gray-500">₹0.00</span>
+              <div className="py-2.5 flex justify-between">
+                <span className="text-[#48484a]">Taxes & Fees</span>
+                <span className="font-semibold text-[#34c759]">₹0.00</span>
               </div>
-              <div className="py-3 flex justify-between text-sm font-black border-t border-gray-200">
-                <span className="text-gray-800">Total Payable</span>
-                <span className="text-blue-900">₹4,000.00</span>
+              <div className="py-3 flex justify-between text-sm font-bold border-t border-[rgba(60,60,67,0.12)]">
+                <span className="text-[#1c1c1e]">Total Payable</span>
+                <span className="text-[#007aff]">₹4,000.00</span>
               </div>
             </div>
           </div>
 
           {/* Verification Form */}
-          <div className="card-base p-5 bg-white">
-            <h2 className="text-sm font-black text-gray-800 mb-2">Confirm Payment</h2>
-            <p className="text-[11px] text-gray-400 mb-4">
-              Enter your transaction details below to verify and activate your Pro Plan instantly.
+          <div className="rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+            <h2 className="text-sm font-bold text-[#1c1c1e] tracking-tight mb-1">
+              Confirm Payment
+            </h2>
+            <p className="text-xs text-[#48484a] mb-4">
+              Enter the transaction UTR number from your payment app.
             </p>
 
             <form onSubmit={handlePaymentConfirm} className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                <label className="block text-[11px] font-semibold text-[#48484a] uppercase tracking-[0.06em] mb-1.5">
                   Transaction Ref ID / UTR Number *
                 </label>
                 <input
@@ -169,58 +191,57 @@ Please approve my upgrade.`;
                   placeholder="e.g. 340912784589"
                   value={transactionId}
                   onChange={(e) => setTransactionId(e.target.value)}
-                  className="input-field placeholder:text-gray-300"
+                  className="w-full rounded-[14px] bg-[#f2f2f7] border border-transparent py-3 px-4 text-sm text-[#1c1c1e] placeholder-[#636366] outline-none transition focus:border-[#007aff] focus:bg-white focus:ring-2 focus:ring-[#007aff]/15"
                 />
               </div>
 
-              <div className="flex flex-col gap-2 pt-2">
+              <div className="flex flex-col gap-2.5 pt-1">
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="btn-primary w-full flex items-center justify-center gap-2 hover:bg-blue-900 transition-colors"
+                  className="w-full py-3.5 rounded-[14px] bg-[#007aff] hover:bg-[#0066d6] text-white font-semibold text-xs transition active:scale-[0.98] shadow-sm flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 size={16} className="animate-spin" />
-                      Activating Plan...
+                      Verifying Transaction...
                     </>
                   ) : (
                     <>
-                      <ShieldCheck size={16} />
+                      <ShieldCheck size={16} strokeWidth={2.2} />
                       Verify & Activate Plan
                     </>
                   )}
                 </button>
 
                 <div className="relative flex py-2 items-center">
-                  <div className="flex-grow border-t border-gray-200"></div>
-                  <span className="flex-shrink mx-3 text-[10px] text-gray-400 uppercase font-black">Or</span>
-                  <div className="flex-grow border-t border-gray-200"></div>
+                  <div className="flex-grow border-t border-[rgba(60,60,67,0.12)]"></div>
+                  <span className="flex-shrink mx-3 text-[10px] text-[#636366] uppercase font-bold">
+                    Or
+                  </span>
+                  <div className="flex-grow border-t border-[rgba(60,60,67,0.12)]"></div>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleWhatsAppConfirm}
-                  className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-3 rounded-[14px] bg-[#34c759] hover:bg-[#28a745] text-white font-semibold text-xs transition active:scale-[0.98] shadow-sm flex items-center justify-center gap-2"
                 >
-                  <MessageSquare size={16} />
+                  <MessageSquare size={16} strokeWidth={2.2} />
                   Confirm on WhatsApp
                 </button>
               </div>
             </form>
           </div>
 
-          {/* Quick Notice */}
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex gap-2.5 items-start">
-            <CheckCircle2 size={16} className="text-blue-700 mt-0.5 shrink-0" />
-            <p className="text-[10px] leading-relaxed text-gray-500">
-              Your safety is our priority. Upgrades are protected under refund policies.
-              The activation is instant upon entering a valid transaction verification number.
+          {/* Assurance Notice */}
+          <div className="rounded-[16px] bg-[#f9f9fb] border border-[rgba(60,60,67,0.08)] p-4 flex gap-3 items-start">
+            <CheckCircle2 size={18} className="text-[#34c759] mt-0.5 shrink-0" />
+            <p className="text-xs leading-relaxed text-[#48484a]">
+              Upgrades are processed securely. In case of any payment question, our team verifies and activates your quota within minutes.
             </p>
           </div>
-
         </div>
-
       </div>
     </div>
   );

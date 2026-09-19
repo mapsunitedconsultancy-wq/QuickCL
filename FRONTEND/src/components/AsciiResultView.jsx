@@ -284,13 +284,13 @@ export default function AsciiResultView({ jsonData }) {
     return (
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:shadow-md">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-4">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-200/60">
-                        <FileText size={15} className="text-slate-600" />
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white border border-slate-200">
+                        <FileText size={15} className="text-slate-700" />
                     </div>
                     <div>
-                        <span className="text-[11px] font-mono font-bold tracking-wider uppercase text-slate-500">
+                        <span className="text-[11px] font-mono font-bold tracking-wider uppercase text-slate-700">
                             RAW EXTRACTED DATA (SKELETAL VIEW)
                         </span>
                     </div>
@@ -301,8 +301,8 @@ export default function AsciiResultView({ jsonData }) {
                 >
                     {copied ? (
                         <>
-                            <Check size={14} className="text-green-600" />
-                            <span className="text-[11px] text-green-600">Copied!</span>
+                            <Check size={14} className="text-slate-900" />
+                            <span className="text-[11px] text-slate-900">Copied!</span>
                         </>
                     ) : (
                         <>
@@ -314,8 +314,8 @@ export default function AsciiResultView({ jsonData }) {
             </div>
 
             {/* Document Body */}
-            <div className="p-6 overflow-auto max-h-[700px] bg-gray-100">
-                <pre className="text-xs font-mono leading-relaxed text-slate-800 whitespace-pre overflow-x-auto selection:bg-blue-100 selection:text-blue-900">
+            <div className="p-6 overflow-auto max-h-[700px] bg-white border-t border-slate-100">
+                <pre className="text-xs font-mono leading-relaxed text-slate-800 whitespace-pre overflow-x-auto selection:bg-slate-200 selection:text-slate-900">
                     {renderedLines}
                 </pre>
             </div>

@@ -8,7 +8,6 @@ import EmptyState from "../components/EmptyState";
 import {
   FileText,
   TrendingUp,
-  Target,
   Clock,
   Upload,
   ArrowRight,
@@ -64,62 +63,45 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="space-y-8 pb-12 max-w-7xl mx-auto">
-
-      {/* ================= HERO ================= */}
-
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-950 via-slate-900 to-blue-900 p-8 shadow-xl border border-blue-800">
-
+    <div className="space-y-6 pb-12 max-w-7xl mx-auto">
+      {/* ================= HERO (Apple HIG) ================= */}
+      <div className="relative overflow-hidden rounded-[20px] bg-white p-7 sm:p-8 shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-[rgba(60,60,67,0.12)]">
         <div className="relative z-10 max-w-3xl">
-
-          <div className="inline-flex items-center gap-2 rounded-full border border-teal-500/30 bg-teal-500/20 px-3 py-1 text-xs font-bold text-teal-300">
-
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#34c759]/30 bg-[#34c759]/10 px-3 py-1 text-xs font-semibold text-[#1c1c1e]">
+            <span className="w-2 h-2 rounded-full bg-[#34c759] animate-pulse" />
             Document Extraction Engine Active
-
           </div>
 
-          <h1 className="mt-5 text-4xl font-black text-white">
-
-            Welcome back
-            {user?.firmName ? `, ${user.firmName}` : ""}
-
+          <h1 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight text-[#1c1c1e]">
+            Welcome back{user?.firmName ? `, ${user.firmName}` : ""}
           </h1>
 
-          <p className="mt-3 text-sm text-slate-300 leading-6">
-
+          <p className="mt-2 text-sm sm:text-base text-[#48484a] leading-relaxed">
             Extract Commercial Invoices, Packing Lists, Bills of Lading and
             generate customs-ready data with high accuracy.
-
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
-
             <button
               onClick={() => navigate("/extract")}
-              className="flex items-center gap-2 rounded-xl bg-teal-400 px-5 py-3 text-sm font-black text-slate-900 transition hover:bg-teal-300"
+              className="flex items-center gap-2 rounded-[14px] bg-[#007aff] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0066d6] active:scale-[0.98]"
             >
-              <Upload size={17} />
-
+              <Upload size={16} strokeWidth={2.2} />
               Start New Extraction
             </button>
 
             <button
               onClick={() => navigate("/history")}
-              className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/80 px-5 py-3 text-sm font-bold text-white hover:bg-slate-700"
+              className="flex items-center gap-2 rounded-[14px] border border-[rgba(60,60,67,0.15)] bg-[#f2f2f7] px-5 py-3 text-sm font-semibold text-[#1c1c1e] transition hover:bg-[#e5e5ea] active:scale-[0.98]"
             >
               View History
             </button>
-
           </div>
-
         </div>
-
       </div>
 
-      {/* ================= STATS ================= */}
-
+      {/* ================= STATS WIDGETS ================= */}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-
         <StatsCard
           icon={FileText}
           label="Total Extractions"
@@ -148,59 +130,41 @@ export default function Dashboard() {
           color="purple"
           sub={`${user?.extractionsUsed || 0} extractions used`}
         />
-
       </div>
 
       {/* ================= MAIN GRID ================= */}
-
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-
-        {/* LEFT SIDE */}
-
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* LEFT: RECENT EXTRACTIONS */}
         <div className="space-y-5 lg:col-span-2">
-
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-
-            <div className="flex flex-col gap-4 border-b p-6 sm:flex-row sm:items-center sm:justify-between">
-
+          <div className="rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.04)] overflow-hidden">
+            <div className="flex flex-col gap-4 border-b border-[rgba(60,60,67,0.1)] p-6 sm:flex-row sm:items-center sm:justify-between">
               <div>
-
-                <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
-
-                  <Clock className="text-blue-900" size={20} />
-
+                <h2 className="flex items-center gap-2 text-lg font-bold text-[#1c1c1e]">
+                  <Clock className="text-[#007aff]" size={20} strokeWidth={2.2} />
                   Recent Extractions
-
                 </h2>
-
-                <p className="mt-1 text-xs text-slate-500">
-
+                <p className="mt-0.5 text-xs text-[#48484a]">
                   Open any extraction to view the complete results.
-
                 </p>
-
               </div>
 
               <div className="relative w-full sm:w-64">
-
                 <Search
-                  className="absolute left-3 top-2.5 text-slate-400"
+                  className="absolute left-3.5 top-3 text-[#636366]"
                   size={16}
                 />
-
                 <input
                   type="text"
-                  placeholder="Search..."
+                  placeholder="Search extractions..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm outline-none focus:border-blue-900"
+                  className="w-full rounded-[14px] bg-[#f2f2f7] border border-transparent py-2 pl-9 pr-4 text-sm text-[#1c1c1e] placeholder-[#636366] outline-none transition focus:border-[#007aff] focus:bg-white focus:ring-2 focus:ring-[#007aff]/15"
                 />
-
               </div>
-
             </div>
-              {loading ? (
-              <div className="flex items-center justify-center py-16 text-sm text-slate-500">
+
+            {loading ? (
+              <div className="flex items-center justify-center py-16 text-sm text-[#48484a]">
                 Loading recent extractions...
               </div>
             ) : filteredExtractions.length === 0 ? (
@@ -214,98 +178,63 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-
                 <table className="w-full border-collapse text-sm">
-
                   <thead>
-
-                    <tr className="border-b bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-600">
-
-                      <th className="px-6 py-4 text-left">
-                        Job Number
-                      </th>
-
-                      <th className="px-6 py-4 text-left">
-                        Type
-                      </th>
-
-                      <th className="px-6 py-4 text-center">
-                        Accuracy
-                      </th>
-
-                      <th className="px-6 py-4 text-center">
-                        Created
-                      </th>
-
-                      <th className="px-6 py-4 text-right">
-                        Action
-                      </th>
-
+                    <tr className="border-b border-[rgba(60,60,67,0.1)] bg-[#f9f9fb] text-[11px] font-semibold uppercase tracking-[0.06em] text-[#48484a]">
+                      <th className="px-6 py-3.5 text-left">Job Number</th>
+                      <th className="px-6 py-3.5 text-left">Type</th>
+                      <th className="px-6 py-3.5 text-center">Accuracy</th>
+                      <th className="px-6 py-3.5 text-center">Created</th>
+                      <th className="px-6 py-3.5 text-right">Action</th>
                     </tr>
-
                   </thead>
 
-                  <tbody className="divide-y divide-slate-100">
-
+                  <tbody className="divide-y divide-[rgba(60,60,67,0.06)]">
                     {filteredExtractions.map((ext) => (
-
                       <tr
                         key={ext.id}
-                        className="transition hover:bg-blue-50/40"
+                        className="transition hover:bg-[#f9f9fb]/80"
                       >
-
                         <td className="px-6 py-4">
-
-                          <div className="font-bold text-blue-900">
-
+                          <div className="font-semibold text-[#1c1c1e]">
                             {ext.job_number}
-
                           </div>
-
-                          <div className="mt-1 text-[11px] text-slate-500">
-
+                          <div className="mt-0.5 text-[11px] text-[#636366]">
                             {new Date(ext.created_at).toLocaleString("en-IN")}
-
                           </div>
-
                         </td>
 
                         <td className="px-6 py-4">
-
                           <span
-                            className={`rounded-full px-3 py-1 text-[11px] font-bold ${
+                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                               ext.result_type === "scanned"
-                                ? "bg-teal-100 text-teal-800"
+                                ? "bg-[#5856d6]/10 text-[#5856d6] border border-[#5856d6]/20"
                                 : ext.doc_type === "BOE"
-                                ? "bg-blue-100 text-blue-900"
+                                ? "bg-[#007aff]/10 text-[#007aff] border border-[#007aff]/20"
                                 : ext.doc_type === "SB"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : "bg-purple-100 text-purple-800"
+                                ? "bg-[#34c759]/10 text-[#28a745] border border-[#34c759]/20"
+                                : "bg-[#af52de]/10 text-[#af52de] border border-[#af52de]/20"
                             }`}
                           >
-                            {ext.result_type === "scanned" ? `SCANNED ${ext.doc_type}` : ext.doc_type}
+                            {ext.result_type === "scanned"
+                              ? `SCANNED ${ext.doc_type}`
+                              : ext.doc_type}
                           </span>
-
                         </td>
 
                         <td className="px-6 py-4 text-center">
-
-                          <span className="font-bold text-emerald-700">
-
-                            {ext.accuracy_score != null ? `${ext.accuracy_score.toFixed(1)}%` : '--'}
-
+                          <span className="font-semibold text-[#34c759]">
+                            {ext.accuracy_score != null
+                              ? `${ext.accuracy_score.toFixed(1)}%`
+                              : "--"}
                           </span>
-
                         </td>
 
-                        <td className="px-6 py-4 text-center text-slate-500">
-
+                        <td className="px-6 py-4 text-center text-[#48484a]">
                           {new Date(ext.created_at).toLocaleDateString("en-IN")}
-
                         </td>
 
                         <td className="px-6 py-4 text-right">
-
                           <button
                             onClick={() =>
                               navigate(
@@ -316,120 +245,76 @@ export default function Dashboard() {
                                   : `/results/${ext.id}`
                               )
                             }
-                            className="inline-flex items-center gap-2 rounded-lg bg-blue-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-800"
+                            className="inline-flex items-center gap-1.5 rounded-[10px] bg-[#007aff] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0066d6] active:scale-95"
                           >
-
                             Open
-
-                            <ArrowRight size={14} />
-
+                            <ArrowRight size={13} strokeWidth={2.2} />
                           </button>
-
                         </td>
-
                       </tr>
-
                     ))}
-
                   </tbody>
-
                 </table>
-
               </div>
             )}
-
           </div>
-
         </div>
 
-        {/* ================= RIGHT PANEL ================= */}
-
+        {/* RIGHT: WORKSPACE OVERVIEW */}
         <div className="space-y-5">
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-
-            <h3 className="mb-5 text-lg font-black text-slate-900">
-
+          <div className="rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+            <h3 className="mb-4 text-lg font-bold text-[#1c1c1e] tracking-tight">
               Workspace Overview
-
             </h3>
 
-            <div className="space-y-4">
-
-              <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-
-                <div className="text-xs font-semibold uppercase tracking-wide text-blue-600">
-
+            <div className="space-y-3.5">
+              <div className="rounded-[14px] border border-[rgba(60,60,67,0.08)] bg-[#f9f9fb] p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#007aff]">
                   Current Plan
-
                 </div>
-
-                <div className="mt-2 text-2xl font-black text-blue-900">
-
+                <div className="mt-1 text-2xl font-bold tracking-tight text-[#1c1c1e]">
                   {user?.plan?.toUpperCase() || "DEMO"}
-
                 </div>
-
-                <div className="mt-1 text-xs text-slate-600">
-
+                <div className="mt-0.5 text-xs text-[#636366]">
                   {user?.extractionsUsed || 0} extractions used
-
                 </div>
-
               </div>
 
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-
-                <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-
+              <div className="rounded-[14px] border border-[rgba(60,60,67,0.08)] bg-[#f9f9fb] p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#34c759]">
                   Average Accuracy
-
                 </div>
-
-                <div className="mt-2 text-3xl font-black text-emerald-700">
-
-                  {stats.total > 0 && stats.avgAccuracy != null ? `${stats.avgAccuracy}%` : '--'}
-
+                <div className="mt-1 text-2xl font-bold tracking-tight text-[#1c1c1e]">
+                  {stats.total > 0 && stats.avgAccuracy != null
+                    ? `${stats.avgAccuracy}%`
+                    : "--"}
                 </div>
-
-                <div className="mt-1 text-xs text-slate-600">
-
+                <div className="mt-0.5 text-xs text-[#636366]">
                   Based on your latest extractions
-
                 </div>
-
               </div>
 
-              <button
-                onClick={() => navigate("/extract")}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-900 to-blue-700 px-5 py-4 font-bold text-white transition hover:shadow-lg"
-              >
+              <div className="pt-2 space-y-2.5">
+                <button
+                  onClick={() => navigate("/extract")}
+                  className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#007aff] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0066d6] active:scale-[0.98]"
+                >
+                  <Upload size={16} strokeWidth={2.2} />
+                  Start New Extraction
+                </button>
 
-                <Upload size={18} />
-
-                Start New Extraction
-
-              </button>
-
-              <button
-                onClick={() => navigate("/history")}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-4 font-semibold text-slate-700 transition hover:bg-slate-50"
-              >
-
-                View Full History
-
-                <ArrowRight size={16} />
-
-              </button>
-
+                <button
+                  onClick={() => navigate("/history")}
+                  className="flex w-full items-center justify-center gap-2 rounded-[14px] border border-[rgba(60,60,67,0.12)] bg-[#f2f2f7] px-4 py-3.5 text-sm font-semibold text-[#1c1c1e] transition hover:bg-[#e5e5ea] active:scale-[0.98]"
+                >
+                  View Full History
+                  <ArrowRight size={15} strokeWidth={2.2} />
+                </button>
+              </div>
             </div>
-
           </div>
-
-         </div>
-
+        </div>
       </div>
-
     </div>
   );
 }

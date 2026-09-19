@@ -12,6 +12,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
     "axios": "^1.19.0",
+    "canvas-confetti": "^1.9.4",
     "firebase": "^12.17.0",
     "lucide-react": "^1.28.0",
     "react": "^19.2.8",
@@ -19,6 +20,7 @@
     "react-dropzone": "^19.2.0",
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.18.2",
+    "three": "^0.185.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
