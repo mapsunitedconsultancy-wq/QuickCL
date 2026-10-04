@@ -249,7 +249,7 @@ Return ONLY valid JSON according to the schema.
                 throw new Error('AI returned invalid extraction JSON');
             }
 
-            extractedData.document_type = extractedData.document_type || docType;
+            extractedData.document_type = docType;
 
             const accuracyStats = calculateScannedAccuracy(extractedData);
             const extractionTime = Date.now() - startTime;

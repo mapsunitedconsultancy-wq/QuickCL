@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { searchHSCodes } from '../api';
 import CopyButton from '../components/CopyButton';
 import {
@@ -13,11 +14,36 @@ import {
 } from 'lucide-react';
 
 export default function HSLookup() {
+  const [searchParams] = useSearchParams();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [method, setMethod] = useState('');
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+
+  // Auto-search if ?q= query param is provided
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q && q.trim().length >= 2) {
+      const trimmed = q.trim();
+      setQuery(trimmed);
+      setLoading(true);
+      setSearched(true);
+      searchHSCodes(trimmed)
+        .then((res) => {
+          setResults(res.data.results || []);
+          setMethod(res.data.method || '');
+        })
+        .catch((err) => {
+          console.error(err);
+          setResults([]);
+          setMethod('');
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  }, [searchParams]);
 
   const handleSearch = async (e) => {
     e?.preventDefault();

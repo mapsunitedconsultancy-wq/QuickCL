@@ -10,6 +10,9 @@ import {
 import FieldRow from '../components/FieldRow.jsx';
 import ConfidenceBadge from '../components/ConfidenceBadge.jsx';
 import AsciiResultView from '../components/AsciiResultView.jsx';
+import OutputActions from '../components/OutputActions.jsx';
+import GenerateChecklist from '../components/GenerateChecklist.jsx';
+import HSCodeVerificationSection from '../components/HSCodeVerificationSection.jsx';
 
 import {
   Loader2,
@@ -77,6 +80,32 @@ function displayValue(value) {
   }
   return String(value);
 }
+
+const findRowHsCode = (row) => {
+  if (!row || typeof row !== 'object') return null;
+  const entries = Object.entries(row);
+  for (const [k, v] of entries) {
+    const lk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (lk.includes('hscode') || lk === 'hs' || lk.includes('hsn') || lk.includes('ritc')) {
+      const val = getValue(v);
+      if (hasValue(val)) return val;
+    }
+  }
+  return null;
+};
+
+const findRowDescription = (row) => {
+  if (!row || typeof row !== 'object') return '';
+  const entries = Object.entries(row);
+  for (const [k, v] of entries) {
+    const lk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (lk.includes('desc') || lk.includes('item') || lk.includes('product') || lk.includes('particular')) {
+      const val = getValue(v);
+      if (hasValue(val)) return String(val);
+    }
+  }
+  return '';
+};
 
 // ============================================================
 // Main Component (Apple HIG)
@@ -170,6 +199,15 @@ export default function ImageResults() {
       extractedFieldCount: parsedFields.length + tableFieldCount,
       processingTime: time,
     };
+  }, [data]);
+
+  const items = useMemo(() => {
+    if (!data) return [];
+    if (Array.isArray(data.items) && data.items.length > 0) return data.items;
+    const json = data.extracted_json || data.extractedData || data.data || {};
+    if (Array.isArray(json.items) && json.items.length > 0) return json.items;
+    if (Array.isArray(json.line_items) && json.line_items.length > 0) return json.line_items;
+    return [];
   }, [data]);
 
   const handleCSVDownload = useCallback(() => {
@@ -328,6 +366,8 @@ export default function ImageResults() {
                 <ArrowLeft size={14} strokeWidth={2.2} /> Back
               </button>
 
+              <GenerateChecklist data={data} docType={data?.extraction_type || data?.document_type} />
+
               <button
                 onClick={handleExcelDownload}
                 className="flex items-center gap-2 rounded-[14px] bg-[#34c759] hover:bg-[#28a745] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition active:scale-[0.98]"
@@ -412,6 +452,9 @@ export default function ImageResults() {
           </div>
         </div>
       </div>
+
+      {/* ================= CHECKLIST & CUSTOMS OUTPUT ENGINE ================= */}
+      <OutputActions data={data} />
 
       {/* ================= HS VERIFICATION NOTICE ================= */}
       <div className="rounded-[20px] border border-[#ff9500]/25 bg-[#ff9500]/8 p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
@@ -511,6 +554,109 @@ export default function ImageResults() {
         </section>
       )}
 
+      {/* ================= EXTRACTED LINE ITEMS ================= */}
+      {items.length > 0 && (
+        <section className="overflow-hidden rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+          <div className="border-b border-[rgba(60,60,67,0.1)] bg-white px-6 py-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-white border border-[rgba(60,60,67,0.18)] text-[#1c1c1e] shadow-2xs">
+                <Package size={18} strokeWidth={2.2} />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-[#1c1c1e] tracking-tight">
+                  Extracted Line Items ({items.length})
+                </h2>
+                <p className="text-xs text-[#48484a]">
+                  Line items and tariff items extracted from the document image.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="divide-y divide-[rgba(60,60,67,0.1)]">
+            {items.map((item, index) => {
+              const description = getValue(item.item_description || item.description);
+              const hsCode = getValue(item.hs_code || item.ritc_code);
+
+              return (
+                <div key={item.id || index} className="p-6 space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-[rgba(60,60,67,0.08)]">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-white border border-[rgba(60,60,67,0.18)] text-xs font-bold text-[#1c1c1e]">
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
+                      <span className="text-sm font-bold text-[#1c1c1e]">
+                        Item #{index + 1}
+                      </span>
+                    </div>
+                    <ConfidenceBadge
+                      score={
+                        getConfidence(item.confidence_score) ||
+                        Number(item.confidence_score) ||
+                        0.9
+                      }
+                      showLabel
+                    />
+                  </div>
+
+                  <div className="divide-y divide-[rgba(60,60,67,0.06)] rounded-[14px] border border-[rgba(60,60,67,0.08)] overflow-hidden">
+                    {hasValue(description) && (
+                      <FieldRow
+                        label="Description"
+                        value={displayValue(description)}
+                        confidence={
+                          getConfidence(item.item_description || item.description) || 0.95
+                        }
+                        fieldKey={`items.${item.id}.item_description`}
+                        onEdit={handleFieldEdit}
+                      />
+                    )}
+
+                    <FieldRow
+                      label="HS Code"
+                      value={hasValue(hsCode) ? displayValue(hsCode) : ''}
+                      confidence={
+                        getConfidence(item.hs_code) ||
+                        Number(item.confidence_score) ||
+                        0
+                      }
+                      fieldKey={`items.${item.id}.hs_code`}
+                      onEdit={handleFieldEdit}
+                    />
+
+                    {[
+                      ['Quantity', item.quantity, 'quantity'],
+                      ['Unit', item.unit, 'unit'],
+                      ['Unit Price', item.unit_price, 'unit_price'],
+                      ['Total Amount', item.total_amount || item.total_value, 'total_amount'],
+                    ].map(([fieldLabel, fieldValue, colName]) => {
+                      if (!hasValue(getValue(fieldValue))) return null;
+                      return (
+                        <FieldRow
+                          key={fieldLabel}
+                          label={fieldLabel}
+                          value={displayValue(getValue(fieldValue))}
+                          confidence={getConfidence(fieldValue) || 0.95}
+                          fieldKey={`items.${item.id}.${colName}`}
+                          onEdit={handleFieldEdit}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {/* HS Code Verification & Lookup Section for line item */}
+                  <HSCodeVerificationSection
+                    hsCode={hsCode}
+                    description={description}
+                    itemIndex={index}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* ================= DYNAMIC TABLES ================= */}
       {tables.map((table, tIndex) => (
         <section
@@ -534,34 +680,51 @@ export default function ImageResults() {
           </div>
 
           <div className="divide-y-4 divide-[rgba(60,60,67,0.06)]">
-            {table.rows?.map((row, rIndex) => (
-              <div key={rIndex} className="p-4 space-y-2">
-                <div className="bg-white px-4 py-2 rounded-[10px] border border-[rgba(60,60,67,0.08)]">
-                  <span className="text-xs font-bold uppercase tracking-[0.06em] text-[#48484a]">
-                    Row #{rIndex + 1}
-                  </span>
-                </div>
+            {table.rows?.map((row, rIndex) => {
+              const rowHsCode = findRowHsCode(row);
+              const rowDesc = findRowDescription(row);
 
-                <div className="divide-y divide-[rgba(60,60,67,0.06)] rounded-[12px] border border-[rgba(60,60,67,0.06)] overflow-hidden">
-                  {Object.entries(row).map(([colKey, cellObj]) => {
-                    const val = getValue(cellObj);
-                    const conf = getConfidence(cellObj);
-                    if (!hasValue(val)) return null;
+              return (
+                <div key={rIndex} className="p-4 space-y-3">
+                  <div className="bg-white px-4 py-2 rounded-[10px] border border-[rgba(60,60,67,0.08)] flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-[0.06em] text-[#48484a]">
+                      Row #{rIndex + 1}
+                    </span>
+                    {rowDesc && (
+                      <span className="text-xs font-medium text-[#48484a] truncate max-w-xs sm:max-w-md">
+                        {String(rowDesc)}
+                      </span>
+                    )}
+                  </div>
 
-                    return (
-                      <FieldRow
-                        key={colKey}
-                        label={label(colKey)}
-                        value={displayValue(val)}
-                        confidence={conf || 0.9}
-                        fieldKey={`tables.${tIndex}.rows.${rIndex}.${colKey}`}
-                        onEdit={handleFieldEdit}
-                      />
-                    );
-                  })}
+                  <div className="divide-y divide-[rgba(60,60,67,0.06)] rounded-[12px] border border-[rgba(60,60,67,0.06)] overflow-hidden">
+                    {Object.entries(row).map(([colKey, cellObj]) => {
+                      const val = getValue(cellObj);
+                      const conf = getConfidence(cellObj);
+                      if (!hasValue(val)) return null;
+
+                      return (
+                        <FieldRow
+                          key={colKey}
+                          label={label(colKey)}
+                          value={displayValue(val)}
+                          confidence={conf || 0.9}
+                          fieldKey={`tables.${tIndex}.rows.${rIndex}.${colKey}`}
+                          onEdit={handleFieldEdit}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {/* HS Code Verification & Lookup Section for table row */}
+                  <HSCodeVerificationSection
+                    hsCode={rowHsCode}
+                    description={rowDesc}
+                    itemIndex={rIndex}
+                  />
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       ))}

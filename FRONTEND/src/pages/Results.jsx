@@ -10,8 +10,11 @@ import {
 
 import FieldRow from '../components/FieldRow.jsx';
 import HSCodeSuggestion from '../components/HSCodeSuggestion.jsx';
+import HSCodeVerificationSection from '../components/HSCodeVerificationSection.jsx';
 import ConfidenceBadge from '../components/ConfidenceBadge.jsx';
 import AsciiResultView from '../components/AsciiResultView.jsx';
+import OutputActions from '../components/OutputActions.jsx';
+import GenerateChecklist from '../components/GenerateChecklist.jsx';
 
 import {
   Loader2,
@@ -530,6 +533,8 @@ export default function Results() {
                 <ArrowLeft size={14} strokeWidth={2.2} /> Back
               </button>
 
+              <GenerateChecklist data={{ ...data, items }} docType={data?.extraction_type || data?.document_type} />
+
               <button
                 onClick={handleExcelDownload}
                 className="flex items-center gap-2 rounded-[14px] bg-[#34c759] hover:bg-[#28a745] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition active:scale-[0.98]"
@@ -614,6 +619,9 @@ export default function Results() {
           </div>
         </div>
       </div>
+
+      {/* ================= CHECKLIST & CUSTOMS OUTPUT ENGINE ================= */}
+      <OutputActions data={{ ...data, items }} docType={data?.doc_type} />
 
       {/* ================= HS VERIFICATION NOTICE ================= */}
       <div className="rounded-[20px] border border-[#ff9500]/25 bg-[#ff9500]/8 p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
@@ -832,58 +840,17 @@ export default function Results() {
                       />
                     )}
 
-                    {hasValue(hsCode) && (
-                      <div className="bg-white">
-                        <FieldRow
-                          label="HS Code"
-                          value={displayValue(hsCode)}
-                          confidence={
-                            getConfidence(item.hs_code) ||
-                            Number(item.confidence_score) ||
-                            0
-                          }
-                          fieldKey={`items.${item.id}.hs_code`}
-                          onEdit={handleFieldEdit}
-                        />
-
-                        {/* HS Notice Callout */}
-                        <div className="m-4 rounded-[14px] border border-[rgba(60,60,67,0.12)] bg-white p-4 shadow-2xs">
-                          <div className="flex items-start gap-3">
-                            <Search
-                              size={18}
-                              strokeWidth={2.2}
-                              className="mt-0.5 shrink-0 text-[#1c1c1e]"
-                            />
-                            <div className="flex-1">
-                              <p className="text-xs font-bold text-[#1c1c1e]">
-                                Verify Extracted HS Code
-                              </p>
-                              <p className="mt-1 text-xs leading-relaxed text-[#48484a]">
-                                The code shown above is directly extracted from the invoice. Verify classification against the 8-digit Indian Customs ITC-HS schedule.
-                              </p>
-
-                              <div className="mt-3 flex flex-wrap gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => navigate('/hs-lookup')}
-                                  className="flex items-center gap-1.5 rounded-[10px] bg-[#007aff] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#0066d6] active:scale-95"
-                                >
-                                  <Search size={13} strokeWidth={2.2} /> Search ITC-HS
-                                </button>
-                                <a
-                                  href={ICEGATE_TRADE_GUIDE}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-1.5 rounded-[10px] border border-[rgba(60,60,67,0.15)] bg-white px-3 py-1.5 text-xs font-semibold text-[#1c1c1e] transition hover:bg-[#f2f2f7] active:scale-95"
-                                >
-                                  <ExternalLink size={13} /> Official Tariff Guide
-                                </a>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    <FieldRow
+                      label="HS Code"
+                      value={hasValue(hsCode) ? displayValue(hsCode) : ''}
+                      confidence={
+                        getConfidence(item.hs_code) ||
+                        Number(item.confidence_score) ||
+                        0
+                      }
+                      fieldKey={`items.${item.id}.hs_code`}
+                      onEdit={handleFieldEdit}
+                    />
 
                     {[
                       ['Quantity', item.quantity, 'quantity'],
@@ -904,6 +871,13 @@ export default function Results() {
                       );
                     })}
                   </div>
+
+                  {/* HS Code Verification & Lookup Section (Always present for every line item) */}
+                  <HSCodeVerificationSection
+                    hsCode={hsCode}
+                    description={description}
+                    itemIndex={index}
+                  />
 
                   {/* AI Suggested HS Codes */}
                   {Array.isArray(item.ai_suggested_hs) && item.ai_suggested_hs.length > 0 && (
