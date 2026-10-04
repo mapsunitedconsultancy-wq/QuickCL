@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { buildUnifiedModel } from '../lib/output/unifiedModel.js';
 import { generateShippingBillPDF } from '../lib/checklist/generatePDF.js';
 import { generateBillOfEntryPDF } from '../lib/checklist/generatePDFBoe.js';
@@ -20,29 +20,41 @@ export default function OutputActions({ data, docType: propDocType }) {
   const { user } = useAuth();
   const [busy, setBusy] = useState('');
 
-  // Determine initial document type:
-  // Strictly checks explicit docType prop & DB column doc_type first
-  const initialDocType = useMemo(() => {
+  // Strictly determine extraction document type (BOE vs SB)
+  // When it is BOE, only BOE checklist is downloaded.
+  // When it is SB, only SB checklist is downloaded.
+  // No toggle or option for the other type is allowed.
+  const activeDocType = useMemo(() => {
     const raw = String(
       propDocType ||
       data?.doc_type ||
       data?.docType ||
-      data?.extracted_json?.doc_type ||
-      data?.document_type ||
       data?.extraction_type ||
+      data?.document_type ||
+      data?.extracted_json?.doc_type ||
       data?.extracted_json?.document_type ||
-      'SB'
+      ''
     ).toUpperCase().trim();
 
-    const isSB = raw === 'SB' || raw.includes('EXPORT') || raw.includes('SHIPPING') || raw.startsWith('SB');
-    return isSB ? 'SB' : 'BOE';
+    if (
+      raw === 'BOE' ||
+      raw.startsWith('BOE') ||
+      raw.includes('BILL OF ENTRY') ||
+      raw.includes('IMPORT') ||
+      raw.includes('ENTRY')
+    ) {
+      return 'BOE';
+    }
+    if (
+      raw === 'SB' ||
+      raw.startsWith('SB') ||
+      raw.includes('SHIPPING') ||
+      raw.includes('EXPORT')
+    ) {
+      return 'SB';
+    }
+    return 'BOE';
   }, [data, propDocType]);
-
-  const [activeDocType, setActiveDocType] = useState(initialDocType);
-
-  useEffect(() => {
-    setActiveDocType(initialDocType);
-  }, [initialDocType]);
 
   const savedCha = useMemo(() => {
     try {
@@ -63,7 +75,7 @@ export default function OutputActions({ data, docType: propDocType }) {
       bankAccount: user?.bankAccount || user?.bank_account || savedCha?.bankAccount || '',
       ifsc: user?.ifsc || user?.ifsc_code || savedCha?.ifsc || '',
       bankName: user?.bankName || user?.bank_name || savedCha?.bankName || '',
-      jobNo: data?.job_number || data?.jobNumber || `JOB${Date.now().toString().slice(-6)}`,
+      jobNo: data?.job_number || data?.jobNumber || 'JOB-CUSTOMS',
     }),
     [user, savedCha, data]
   );
@@ -126,9 +138,15 @@ export default function OutputActions({ data, docType: propDocType }) {
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-base font-bold text-[#1c1c1e] tracking-tight">
-                Checklist &amp; Customs Declaration Engine
+                {activeDocType === 'BOE' ? 'Bill of Entry Checklist & Customs Engine' : 'Shipping Bill Checklist & Customs Engine'}
               </h2>
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#007aff]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#007aff] border border-[#007aff]/20">
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${
+                  activeDocType === 'BOE'
+                    ? 'bg-[#007aff]/10 text-[#007aff] border-[#007aff]/20'
+                    : 'bg-[#34c759]/10 text-[#34c759] border-[#34c759]/20'
+                }`}
+              >
                 <CheckCircle2 size={11} />
                 {activeDocType === 'BOE' ? 'Bill of Entry (Import)' : 'Shipping Bill (Export)'}
               </span>
@@ -139,32 +157,18 @@ export default function OutputActions({ data, docType: propDocType }) {
           </div>
         </div>
 
-        {/* Declaration Type Toggle + CHA profile */}
+        {/* Extraction Type Badge & CHA profile (No toggle allowed) */}
         <div className="flex flex-wrap items-center gap-2.5 self-start lg:self-center">
-          <div className="inline-flex rounded-[12px] bg-[#f2f2f7] p-1 border border-[rgba(60,60,67,0.1)]">
-            <button
-              type="button"
-              onClick={() => setActiveDocType('SB')}
-              className={`rounded-[9px] px-3 py-1.5 text-xs font-bold transition-all ${
-                activeDocType === 'SB'
-                  ? 'bg-white text-[#1c1c1e] shadow-2xs'
-                  : 'text-[#636366] hover:text-[#1c1c1e]'
-              }`}
-            >
-              Shipping Bill (SB)
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveDocType('BOE')}
-              className={`rounded-[9px] px-3 py-1.5 text-xs font-bold transition-all ${
-                activeDocType === 'BOE'
-                  ? 'bg-white text-[#1c1c1e] shadow-2xs'
-                  : 'text-[#636366] hover:text-[#1c1c1e]'
-              }`}
-            >
-              Bill of Entry (BOE)
-            </button>
-          </div>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-[12px] px-3.5 py-1.5 text-xs font-bold border shadow-2xs ${
+              activeDocType === 'BOE'
+                ? 'bg-[#007aff]/10 text-[#007aff] border-[#007aff]/25'
+                : 'bg-[#34c759]/10 text-[#34c759] border-[#34c759]/25'
+            }`}
+          >
+            <CheckCircle2 size={13} strokeWidth={2.4} />
+            {activeDocType === 'BOE' ? 'BOE Extraction' : 'SB Extraction'}
+          </span>
 
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(60,60,67,0.12)] bg-[#f9f9fb] px-3 py-1.5 text-[11px] font-medium text-[#636366]">
             <Building2 size={12} className="text-[#1c1c1e]" />
@@ -175,7 +179,7 @@ export default function OutputActions({ data, docType: propDocType }) {
 
       {/* Action buttons */}
       <div className="mt-5 flex flex-wrap items-center gap-3">
-        {/* PRIMARY: Checklist PDF */}
+        {/* PRIMARY: Checklist PDF (Strictly for the extracted document type) */}
         <button
           type="button"
           onClick={handleGenPDF}
@@ -197,7 +201,7 @@ export default function OutputActions({ data, docType: propDocType }) {
           )}
         </button>
 
-        {/* SECONDARY: ICES File */}
+        {/* SECONDARY: ICES File (Strictly for the extracted document type) */}
         <button
           type="button"
           onClick={handleGenICES}

@@ -14,14 +14,20 @@ export default function GenerateChecklist({ data, docType }) {
     docType ||
     data?.doc_type ||
     data?.docType ||
-    data?.extracted_json?.doc_type ||
-    data?.document_type ||
     data?.extraction_type ||
+    data?.document_type ||
+    data?.extracted_json?.doc_type ||
     data?.extracted_json?.document_type ||
-    'SB'
+    ''
   ).toUpperCase().trim();
-  const isSB = rawDocType === 'SB' || rawDocType.includes('EXPORT') || rawDocType.includes('SHIPPING') || rawDocType.startsWith('SB');
-  const isBoe = !isSB && (rawDocType.includes('BOE') || rawDocType.includes('IMPORT') || rawDocType.includes('BILL OF ENTRY') || rawDocType.startsWith('BOE'));
+
+  const isBoe =
+    rawDocType === 'BOE' ||
+    rawDocType.startsWith('BOE') ||
+    rawDocType.includes('BILL OF ENTRY') ||
+    rawDocType.includes('IMPORT') ||
+    rawDocType.includes('ENTRY');
+  const activeDocType = isBoe ? 'BOE' : 'SB';
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -30,7 +36,9 @@ export default function GenerateChecklist({ data, docType }) {
       try {
         const s = localStorage.getItem('quickcl_cha_profile');
         if (s) savedCha = JSON.parse(s);
-      } catch {}
+      } catch {
+        savedCha = {};
+      }
 
       // CHA details from the firm's profile
       const cha = {
@@ -45,9 +53,9 @@ export default function GenerateChecklist({ data, docType }) {
         jobNo: data?.job_number || data?.jobNumber || `JOB-${Date.now().toString().slice(-6)}`,
       };
 
-      const model = buildUnifiedModel(data, cha, isBoe ? 'BOE' : 'SB');
+      const model = buildUnifiedModel(data, cha, activeDocType);
 
-      if (isBoe) {
+      if (activeDocType === 'BOE') {
         generateBillOfEntryPDF(model);
         toast.success('Bill of Entry Checklist generated successfully');
       } else {
@@ -67,6 +75,7 @@ export default function GenerateChecklist({ data, docType }) {
       onClick={handleGenerate}
       disabled={generating}
       className="flex items-center gap-2 rounded-[14px] bg-[#34c759] hover:bg-[#28a745] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition active:scale-[0.98] disabled:cursor-wait disabled:opacity-60 cursor-pointer"
+      title={`Download ${activeDocType === 'BOE' ? 'Bill of Entry' : 'Shipping Bill'} Checklist PDF`}
     >
       {generating ? (
         <>
@@ -76,7 +85,7 @@ export default function GenerateChecklist({ data, docType }) {
       ) : (
         <>
           <FileText size={15} strokeWidth={2.2} />
-          <span>{isBoe ? 'BOE Checklist' : 'SB Checklist'}</span>
+          <span>{activeDocType === 'BOE' ? 'BOE Checklist' : 'SB Checklist'}</span>
         </>
       )}
     </button>
