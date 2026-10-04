@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   Settings as SettingsIcon,
@@ -8,12 +9,48 @@ import {
   FileText,
   BarChart3,
   ShieldCheck,
-  CheckCircle2,
   Crown,
+  FileBadge,
+  Save,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+
+  const [chaProfile, setChaProfile] = useState(() => {
+    let saved = {};
+    try {
+      const s = localStorage.getItem('quickcl_cha_profile');
+      if (s) saved = JSON.parse(s);
+    } catch {
+      // ignore
+    }
+
+    return {
+      firmName: user?.firmName || user?.firm_name || saved.firmName || 'MAPS UNITED CONSULTANCY',
+      chaLicense: user?.chaLicense || user?.cha_license || saved.chaLicense || 'AARFD5233DCH002',
+      customsHouse: user?.customsHouse || user?.customs_house || saved.customsHouse || 'INMUN1 - Customs, Mundra',
+      stateName: user?.stateName || user?.state_name || saved.stateName || 'GUJARAT',
+      districtName: user?.districtName || user?.district_name || saved.districtName || 'KACHCHH',
+      bankAccount: user?.bankAccount || user?.bank_account || saved.bankAccount || '',
+      ifsc: user?.ifsc || user?.ifsc_code || saved.ifsc || '',
+      bankName: user?.bankName || user?.bank_name || saved.bankName || '',
+    };
+  });
+
+  const handleSaveChaProfile = (e) => {
+    e.preventDefault();
+    try {
+      localStorage.setItem('quickcl_cha_profile', JSON.stringify(chaProfile));
+      if (updateUser) {
+        updateUser(chaProfile);
+      }
+      toast.success('CHA Customs Profile saved for checklists!');
+    } catch {
+      toast.error('Failed to save profile');
+    }
+  };
 
   const info = [
     {
@@ -107,6 +144,150 @@ export default function Settings() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* ================= CHA CUSTOMS PROFILE (Checklist & ICEGATE) ================= */}
+      <div className="overflow-hidden rounded-[20px] border border-[rgba(60,60,67,0.12)] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+        <div className="border-b border-[rgba(60,60,67,0.1)] bg-white px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-[10px] bg-white border border-[rgba(60,60,67,0.18)] text-[#1c1c1e] flex items-center justify-center shadow-2xs">
+              <FileBadge size={18} strokeWidth={2.2} className="text-[#007aff]" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-[#1c1c1e] tracking-tight">
+                CHA Customs Profile
+              </h2>
+              <p className="text-xs text-[#48484a]">
+                Auto-populates Shipping Bill and Bill of Entry checklists and ICEGATE files
+              </p>
+            </div>
+          </div>
+
+          <span className="text-[10px] font-bold uppercase tracking-[0.06em] px-2.5 py-1 rounded-full bg-[#007aff]/10 text-[#007aff] border border-[#007aff]/20">
+            Checklist Config
+          </span>
+        </div>
+
+        <form onSubmit={handleSaveChaProfile} className="p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#636366] mb-1">
+                CHA Brokerage Firm Name
+              </label>
+              <input
+                type="text"
+                value={chaProfile.firmName}
+                onChange={(e) => setChaProfile({ ...chaProfile, firmName: e.target.value })}
+                placeholder="e.g. DAKSH LOGISTICS / MAPS CONSULTANCY"
+                className="w-full rounded-[10px] border border-[rgba(60,60,67,0.18)] px-3.5 py-2 text-sm font-medium text-[#1c1c1e] focus:border-[#007aff] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#636366] mb-1">
+                CHA License Number
+              </label>
+              <input
+                type="text"
+                value={chaProfile.chaLicense}
+                onChange={(e) => setChaProfile({ ...chaProfile, chaLicense: e.target.value })}
+                placeholder="e.g. AARFD5233DCH002"
+                className="w-full rounded-[10px] border border-[rgba(60,60,67,0.18)] px-3.5 py-2 text-sm font-mono text-[#1c1c1e] focus:border-[#007aff] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#636366] mb-1">
+                Default Customs House / Port
+              </label>
+              <input
+                type="text"
+                value={chaProfile.customsHouse}
+                onChange={(e) => setChaProfile({ ...chaProfile, customsHouse: e.target.value })}
+                placeholder="e.g. INMUN1 - Customs, Mundra"
+                className="w-full rounded-[10px] border border-[rgba(60,60,67,0.18)] px-3.5 py-2 text-sm font-medium text-[#1c1c1e] focus:border-[#007aff] focus:outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#636366] mb-1">
+                  State of Origin
+                </label>
+                <input
+                  type="text"
+                  value={chaProfile.stateName}
+                  onChange={(e) => setChaProfile({ ...chaProfile, stateName: e.target.value })}
+                  placeholder="GUJARAT (24)"
+                  className="w-full rounded-[10px] border border-[rgba(60,60,67,0.18)] px-3.5 py-2 text-sm font-medium text-[#1c1c1e] focus:border-[#007aff] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#636366] mb-1">
+                  District
+                </label>
+                <input
+                  type="text"
+                  value={chaProfile.districtName}
+                  onChange={(e) => setChaProfile({ ...chaProfile, districtName: e.target.value })}
+                  placeholder="KACHCHH (449)"
+                  className="w-full rounded-[10px] border border-[rgba(60,60,67,0.18)] px-3.5 py-2 text-sm font-medium text-[#1c1c1e] focus:border-[#007aff] focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#636366] mb-1">
+                Bank Account Number
+              </label>
+              <input
+                type="text"
+                value={chaProfile.bankAccount}
+                onChange={(e) => setChaProfile({ ...chaProfile, bankAccount: e.target.value })}
+                placeholder="Bank account for drawback / refunds"
+                className="w-full rounded-[10px] border border-[rgba(60,60,67,0.18)] px-3.5 py-2 text-sm font-mono text-[#1c1c1e] focus:border-[#007aff] focus:outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#636366] mb-1">
+                  IFSC Code
+                </label>
+                <input
+                  type="text"
+                  value={chaProfile.ifsc}
+                  onChange={(e) => setChaProfile({ ...chaProfile, ifsc: e.target.value })}
+                  placeholder="e.g. HDFC0000123"
+                  className="w-full rounded-[10px] border border-[rgba(60,60,67,0.18)] px-3.5 py-2 text-sm font-mono text-[#1c1c1e] focus:border-[#007aff] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#636366] mb-1">
+                  Bank Name
+                </label>
+                <input
+                  type="text"
+                  value={chaProfile.bankName}
+                  onChange={(e) => setChaProfile({ ...chaProfile, bankName: e.target.value })}
+                  placeholder="e.g. HDFC Bank"
+                  className="w-full rounded-[10px] border border-[rgba(60,60,67,0.18)] px-3.5 py-2 text-sm font-medium text-[#1c1c1e] focus:border-[#007aff] focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-3">
+            <button
+              type="submit"
+              className="inline-flex items-center gap-2 rounded-[12px] bg-[#007aff] hover:bg-[#0066d6] px-5 py-2.5 text-xs font-bold text-white shadow-sm transition active:scale-[0.98] cursor-pointer"
+            >
+              <Save size={14} /> Save Customs Profile
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* ================= PLAN + USAGE ================= */}

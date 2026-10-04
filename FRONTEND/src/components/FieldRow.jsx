@@ -30,7 +30,7 @@ export default function FieldRow({ label, value, confidence, onEdit, fieldKey })
       {/* Label */}
       <div className="sm:w-60 shrink-0">
         <span
-          className="text-xs font-semibold text-[#48484a] tracking-wide"
+          className="text-xs font-bold text-[#1c1c1e] tracking-wide"
           title={label}
         >
           {label}

@@ -517,9 +517,7 @@ Return ONLY valid JSON.
             // Set document type
             // =================================================
 
-            extractedData.document_type =
-                extractedData.document_type ||
-                docType;
+            extractedData.document_type = docType;
 
 
             // =================================================
