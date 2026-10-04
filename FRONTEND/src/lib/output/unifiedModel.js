@@ -57,14 +57,20 @@ export function buildUnifiedModel(data, cha = {}, docType = 'SB') {
     docType ||
     data.doc_type ||
     data.docType ||
-    ext.doc_type ||
-    data.document_type ||
     data.extraction_type ||
+    data.document_type ||
+    ext.doc_type ||
     ext.document_type ||
-    'SB'
+    ''
   ).toUpperCase().trim();
-  const isSB = rawDocType === 'SB' || rawDocType.includes('EXPORT') || rawDocType.includes('SHIPPING') || rawDocType.startsWith('SB');
-  const normalizedDocType = isSB ? 'SB' : (rawDocType.includes('BOE') || rawDocType.includes('IMPORT') ? 'BOE' : 'SB');
+
+  const isBoe =
+    rawDocType === 'BOE' ||
+    rawDocType.startsWith('BOE') ||
+    rawDocType.includes('BILL OF ENTRY') ||
+    rawDocType.includes('IMPORT') ||
+    rawDocType.includes('ENTRY');
+  const normalizedDocType = isBoe ? 'BOE' : 'SB';
 
   const rawItems = items(data);
 

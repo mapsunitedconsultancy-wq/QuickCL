@@ -533,7 +533,7 @@ export default function Results() {
                 <ArrowLeft size={14} strokeWidth={2.2} /> Back
               </button>
 
-              <GenerateChecklist data={{ ...data, items }} docType={data?.extraction_type || data?.document_type} />
+              <GenerateChecklist data={{ ...data, items }} docType={data?.doc_type} />
 
               <button
                 onClick={handleExcelDownload}

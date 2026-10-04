@@ -366,7 +366,7 @@ export default function ImageResults() {
                 <ArrowLeft size={14} strokeWidth={2.2} /> Back
               </button>
 
-              <GenerateChecklist data={data} docType={data?.extraction_type || data?.document_type} />
+              <GenerateChecklist data={data} docType={data?.doc_type || data?.extracted_json?.doc_type || data?.extracted_json?.document_type} />
 
               <button
                 onClick={handleExcelDownload}
@@ -454,7 +454,7 @@ export default function ImageResults() {
       </div>
 
       {/* ================= CHECKLIST & CUSTOMS OUTPUT ENGINE ================= */}
-      <OutputActions data={data} />
+      <OutputActions data={data} docType={data?.doc_type || data?.extracted_json?.doc_type || data?.extracted_json?.document_type} />
 
       {/* ================= HS VERIFICATION NOTICE ================= */}
       <div className="rounded-[20px] border border-[#ff9500]/25 bg-[#ff9500]/8 p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
